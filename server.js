@@ -22,6 +22,7 @@ import {
   normalizePnr,
   IRCTC_HOST,
 } from "./api/_lib/irctc.js";
+import { resolveAirport, skyFetch, normalizeFlights } from "./api/_lib/flights.js";
 
 const app = express();
 app.use(cors());
@@ -90,6 +91,31 @@ app.get("/api/pnr/:pnrNumber", async (req, res) => {
     res.json(normalizePnr(data, pnrNumber));
   } catch (err) {
     res.status(err.code === "NO_KEY" ? 503 : 500).json({ error: "Failed to fetch PNR status. " + err.message });
+  }
+});
+
+app.get("/api/flights-search", async (req, res) => {
+  const { from, to, fromCode, toCode, date } = req.query;
+  const originQ = fromCode || from;
+  const destQ = toCode || to;
+  if (!originQ || !destQ || !date)
+    return res.status(400).json({ error: "from/to (or fromCode/toCode) and date are required." });
+  try {
+    const [origin, dest] = await Promise.all([resolveAirport(originQ), resolveAirport(destQ)]);
+    if (!origin || !dest)
+      return res.status(404).json({ error: "Couldn't resolve one of the airports." });
+    const path =
+      `/api/v2/flights/searchFlights?originSkyId=${encodeURIComponent(origin.skyId)}` +
+      `&destinationSkyId=${encodeURIComponent(dest.skyId)}` +
+      `&originEntityId=${encodeURIComponent(origin.entityId)}` +
+      `&destinationEntityId=${encodeURIComponent(dest.entityId)}` +
+      `&date=${encodeURIComponent(date)}&cabinClass=economy&adults=1&sortBy=best&currency=INR&market=en-US&countryCode=IN`;
+    const { status, data } = await skyFetch(path);
+    if (status !== 200 || !data?.data)
+      return res.status(status || 502).json({ error: data?.message || "Flight search failed or no results." });
+    res.json(normalizeFlights(data));
+  } catch (err) {
+    res.status(err.code === "NO_KEY" ? 503 : 500).json({ error: "Failed to fetch flights. " + err.message });
   }
 });
 

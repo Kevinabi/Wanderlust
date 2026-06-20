@@ -643,6 +643,11 @@ function SearchForm({ activeCategory, isMobile }) {
   const [trainLoading, setTrainLoading] = useState(false);
   const [trainError, setTrainError] = useState(null);
 
+  // Flight search results
+  const [flightResults, setFlightResults] = useState(null);
+  const [flightLoading, setFlightLoading] = useState(false);
+  const [flightError, setFlightError] = useState(null);
+
   const meta = CATEGORY_META[activeCategory] || CATEGORY_META.flights;
   const dataset = DATASETS[activeCategory] || FLIGHT_CITIES;
 
@@ -650,6 +655,7 @@ function SearchForm({ activeCategory, isMobile }) {
   useEffect(() => {
     setFrom(null); setTo(null); setSearched(false);
     setTrainResults(null); setTrainError(null);
+    setFlightResults(null); setFlightError(null);
   }, [activeCategory]);
 
   const swap = () => { setFrom(to); setTo(from); };
@@ -664,6 +670,21 @@ function SearchForm({ activeCategory, isMobile }) {
       setTrainError(e.message);
     } finally {
       setTrainLoading(false);
+    }
+  }, [from, to, date]);
+
+  const searchFlights = useCallback(async () => {
+    if (!from || !to) return;
+    setFlightLoading(true); setFlightError(null); setFlightResults(null);
+    try {
+      const data = await apiGet(
+        `/flights-search?from=${encodeURIComponent(from.name)}&fromCode=${from.code}&to=${encodeURIComponent(to.name)}&toCode=${to.code}&date=${date}`
+      );
+      setFlightResults(data);
+    } catch (e) {
+      setFlightError(e.message);
+    } finally {
+      setFlightLoading(false);
     }
   }, [from, to, date]);
 
@@ -870,14 +891,19 @@ function SearchForm({ activeCategory, isMobile }) {
       </div>
 
       <div style={{ textAlign: "center", padding: "12px 0 24px" }}>
-        <button onClick={() => setSearched(true)} style={{
-          background: "linear-gradient(135deg, #0B4DA2, #1768D1)", color: "#fff", border: "none",
-          borderRadius: 12, padding: "14px 64px", fontSize: 17, fontWeight: 800, cursor: "pointer",
-          boxShadow: "0 6px 20px rgba(11,77,162,0.32)", transition: "transform .15s",
-        }}
+        <button
+          onClick={() => { if (activeCategory === "flights") searchFlights(); else setSearched(true); }}
+          disabled={activeCategory === "flights" && (!from || !to || flightLoading)}
+          style={{
+            background: activeCategory === "flights" && (!from || !to || flightLoading) ? "#b9c4d6" : "linear-gradient(135deg, #0B4DA2, #1768D1)",
+            color: "#fff", border: "none",
+            borderRadius: 12, padding: "14px 64px", fontSize: 17, fontWeight: 800,
+            cursor: activeCategory === "flights" && (!from || !to || flightLoading) ? "default" : "pointer",
+            boxShadow: "0 6px 20px rgba(11,77,162,0.32)", transition: "transform .15s",
+          }}
           onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
           onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}
-        >{meta.icon} SEARCH {activeCategory.toUpperCase()}</button>
+        >{activeCategory === "flights" ? (flightLoading ? "⏳ Searching Flights…" : "✈️ SEARCH FLIGHTS") : `${meta.icon} SEARCH ${activeCategory.toUpperCase()}`}</button>
         {searched && from && (
           <div style={{ marginTop: 10, color: "#00897B", fontWeight: 600, fontSize: 13 }}>
             ✓ Searching {from.name}{to ? ` → ${to.name}` : ""} for {travellers} {["hotels","homestays"].includes(activeCategory) ? "guest" : "traveller"}{travellers > 1 ? "s" : ""} on {new Date(date).toDateString()}
@@ -887,6 +913,56 @@ function SearchForm({ activeCategory, isMobile }) {
           <div style={{ marginTop: 10, color: "#E91E63", fontWeight: 600, fontSize: 13 }}>⚠ Please select a city to search</div>
         )}
       </div>
+
+      {activeCategory === "flights" && (flightError || flightResults) && (
+        <div style={{ padding: "0 24px 24px" }}>
+          {flightError && (
+            <div style={{ background: "#FFF0F0", borderRadius: 12, border: "1.5px solid #E91E63", padding: "14px 18px", color: "#c62828", fontWeight: 600 }}>❌ {flightError}</div>
+          )}
+          {flightResults && (
+            <>
+              <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e", margin: "0 0 14px" }}>
+                {flightResults.total} flight{flightResults.total !== 1 ? "s" : ""} found · {from?.name} → {to?.name} · {new Date(date + "T00:00:00").toDateString()}
+              </div>
+              {flightResults.flights.length === 0 ? (
+                <div style={{ color: "#888", fontSize: 14 }}>No flights found for this route on the selected date.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {flightResults.flights.map((f) => (
+                    <div key={f.id} style={{ borderRadius: 14, border: "1.5px solid #eef1f6", padding: isMobile ? "14px 16px" : "16px 20px", background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0,1fr) 76px 112px 76px minmax(108px,0.75fr)", alignItems: "center", gap: isMobile ? 12 : 16 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                        {f.airlineLogo
+                          ? <img src={f.airlineLogo} alt="" style={{ width: 30, height: 30, objectFit: "contain", flexShrink: 0 }} />
+                          : <div style={{ width: 30, height: 30, borderRadius: 7, background: "#EAF1FC", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>✈️</div>}
+                        <div style={{ fontWeight: 800, fontSize: 14, color: "#1a1a2e", lineHeight: 1.3 }}>{f.airline}</div>
+                      </div>
+                      <div style={{ display: isMobile ? "flex" : "contents", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                        <div style={{ textAlign: isMobile ? "left" : "center" }}>
+                          <div style={{ fontSize: 18, fontWeight: 900, color: "#1a1a2e" }}>{f.departure}</div>
+                          <div style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{f.from}</div>
+                        </div>
+                        <div style={{ textAlign: "center", color: "#9aa3af" }}>
+                          <div style={{ fontSize: 11, fontWeight: 600 }}>{f.duration}</div>
+                          <div style={{ fontSize: 12, letterSpacing: 1 }}>──→</div>
+                          <div style={{ fontSize: 10.5, fontWeight: 700, color: f.stops === 0 ? "#0a9d57" : "#9aa3af" }}>{f.stopsLabel}</div>
+                        </div>
+                        <div style={{ textAlign: isMobile ? "right" : "center" }}>
+                          <div style={{ fontSize: 18, fontWeight: 900, color: "#1a1a2e" }}>{f.arrival}</div>
+                          <div style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{f.to}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: isMobile ? "flex-start" : "flex-end", gap: 6 }}>
+                        <div style={{ fontSize: 18, fontWeight: 900, color: "#0B4DA2" }}>{f.price}</div>
+                        <button style={{ background: "linear-gradient(135deg, #0B4DA2, #1768D1)", color: "#fff", border: "none", borderRadius: 8, padding: "7px 18px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Book</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </>
   );
 }

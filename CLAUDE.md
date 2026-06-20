@@ -46,6 +46,7 @@ validate.sh              # the quality gate (lint + test + build [+ --full e2e])
 - `GET /api/trains-between?from=NDLS&to=MAS&date=2026-06-20` → `{ trains: [...], total }`
 - `GET /api/live-status/:trainNumber?startDay=1` → normalized live-status object
 - `GET /api/pnr/:pnrNumber` (10 digits) → normalized PNR object
+- `GET /api/flights-search?fromCode=DEL&toCode=BOM&date=2026-07-01` → `{ flights: [...], total }` (Sky-Scrapper)
 - `GET /api/health` → `{ status, api, keySet, time }`
 
 Validation rules: train number 4–5 digits, PNR exactly 10 digits, trains-between
