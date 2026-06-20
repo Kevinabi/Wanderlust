@@ -167,71 +167,73 @@ function HeroMotion({ isMobile }) {
   );
 }
 
-// Morphing category nav — a single fixed bar that interpolates between its
-// embedded position inside the hero card and a docked top bar, driven by scroll.
-// transform/width/blur are written straight to the DOM via rAF (60fps, no React
-// re-renders), so the nav physically lifts and docks with no jump or teleport.
+// Morphing category nav — MMT-style. Big icon-over-label tiles in a floating
+// hero card that shrink into a compact docked bar. A single fixed element
+// interpolates position/size/glass via rAF (60fps, transform-based, no reflow).
 function MorphCategoryNav({ categories, activeCategory, setActiveCategory, anchorRef, isMobile }) {
   const barRef = useRef(null);
   const innerRef = useRef(null);
-  const H = isMobile ? 50 : 58;
+  const H0 = isMobile ? 78 : 92;   // expanded (in hero)
+  const H1 = isMobile ? 52 : 58;   // docked (top)
   useLayoutEffect(() => {
     let raf = 0;
     const DOCK_TOP = 56;
-    const RANGE = 150;
+    const RANGE = 160;
     const apply = () => {
       raf = 0;
       const a = anchorRef.current, bar = barRef.current;
       if (!a || !bar) return;
       const r = a.getBoundingClientRect();
       const top = Math.max(DOCK_TOP, r.top);
-      const p = Math.min(1, Math.max(0, 1 - (r.top - DOCK_TOP) / RANGE));
+      const p = Math.min(1, Math.max(0, 1 - (r.top - DOCK_TOP) / RANGE)); // 0 embedded -> 1 docked
       const left = r.left * (1 - p);
       const width = r.width + (window.innerWidth - r.width) * p;
       bar.style.transform = `translate3d(${left}px, ${top}px, 0)`;
       bar.style.width = `${width}px`;
-      bar.style.height = `${H - 6 * p}px`;
+      bar.style.height = `${H0 + (H1 - H0) * p}px`;
       const rad = 22 * (1 - p);
       bar.style.borderRadius = `${rad}px ${rad}px 0 0`;
-      bar.style.background = `rgba(255,255,255,${1 - 0.15 * p})`;
+      bar.style.background = `rgba(255,255,255,${1 - 0.13 * p})`;
       const blur = 16 * p;
       bar.style.backdropFilter = blur > 0.5 ? `blur(${blur}px)` : "none";
       bar.style.WebkitBackdropFilter = bar.style.backdropFilter;
       bar.style.boxShadow = `0 ${10 * p}px ${30 * p}px rgba(4,29,54,${0.16 * p})`;
       bar.style.borderBottom = `1px solid rgba(238,241,246,${1 - p})`;
       bar.style.opacity = "1";
-      if (innerRef.current) innerRef.current.style.transform = `scale(${1 - 0.05 * p})`;
+      if (innerRef.current) innerRef.current.style.transform = `scale(${1 - 0.36 * p})`;
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(apply); };
     apply();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
     return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); if (raf) cancelAnimationFrame(raf); };
-  }, [anchorRef, H]);
+  }, [anchorRef, H0, H1]);
   return (
     <div ref={barRef} style={{
       position: "fixed", top: 0, left: 0, zIndex: 90, opacity: 0,
-      height: H, display: "flex", alignItems: "center",
+      height: H0, display: "flex", alignItems: "center", justifyContent: "center",
       overflowX: "auto", overflowY: "hidden", scrollbarWidth: "none",
-      willChange: "transform, width, background, box-shadow",
+      willChange: "transform, width, height, background, box-shadow",
     }}>
-      <div ref={innerRef} style={{ display: "flex", alignItems: "center", padding: "0 12px", transformOrigin: "left center", whiteSpace: "nowrap" }}>
-        {categories.map((cat) => (
-          <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
-            onMouseEnter={e => { e.currentTarget.style.color = "#0B4DA2"; }}
-            onMouseLeave={e => { if (activeCategory !== cat.id) e.currentTarget.style.color = "#666"; }}
-            style={{
-              border: "none", background: "none", cursor: "pointer", whiteSpace: "nowrap",
-              padding: isMobile ? "9px 13px" : "12px 20px",
-              fontSize: isMobile ? 13 : 14.5,
-              fontWeight: activeCategory === cat.id ? 700 : 500,
-              color: activeCategory === cat.id ? "#0B4DA2" : "#666",
-              borderBottom: activeCategory === cat.id ? "3px solid #0B4DA2" : "3px solid transparent",
-              display: "flex", alignItems: "center", gap: 6, transition: "color .2s",
-            }}>
-            <span>{cat.icon}</span> {cat.label}
-          </button>
-        ))}
+      <div ref={innerRef} style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? 2 : 6, padding: "0 14px", transformOrigin: "center center", whiteSpace: "nowrap" }}>
+        {categories.map((cat) => {
+          const active = cat.id === activeCategory;
+          return (
+            <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.color = "#0B4DA2"; }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.color = "#444"; }}
+              style={{
+                position: "relative", border: "none", background: "none", cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 5,
+                width: isMobile ? 74 : 94, padding: "8px 4px 12px",
+                color: active ? "#0B4DA2" : "#444", transition: "color .2s",
+              }}>
+              <span style={{ fontSize: isMobile ? 22 : 28, lineHeight: 1 }}>{cat.icon}</span>
+              <span style={{ fontSize: isMobile ? 11 : 12.5, fontWeight: active ? 700 : 600, textAlign: "center", lineHeight: 1.15, whiteSpace: "normal", maxWidth: isMobile ? 70 : 92 }}>{cat.label}</span>
+              {active && <span style={{ position: "absolute", bottom: 0, left: "18%", right: "18%", height: 3, borderRadius: 3, background: "#0B4DA2" }} />}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -1202,7 +1204,7 @@ export default function WanderlustApp() {
         {/* SEARCH CARD */}
         <div style={{ maxWidth: isMobile ? "100%" : 1120, margin: "0 auto", background: "#fff", borderRadius: 22, boxShadow: "0 24px 70px rgba(4,29,54,0.30)", position: "relative", zIndex: 10 }}>
           {/* Category nav lives in <MorphCategoryNav>; this anchor reserves its in-card space */}
-          <div ref={navAnchor} aria-hidden style={{ height: isMobile ? 50 : 58 }} />
+          <div ref={navAnchor} aria-hidden style={{ height: isMobile ? 78 : 92 }} />
 
           <SearchForm activeCategory={activeCategory} isMobile={isMobile} />
         </div>
