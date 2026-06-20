@@ -216,8 +216,8 @@ function useDocked(ref, offset = 56) {
 function DockedCategoryBar({ categories, activeCategory, setActiveCategory, visible, isMobile }) {
   return (
     <div style={{
-      position: "fixed", top: 56, left: 0, right: 0, zIndex: 90,
-      background: "rgba(255,255,255,0.9)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+      position: "fixed", top: 0, left: 0, right: 0, zIndex: 110,
+      background: "rgba(255,255,255,0.95)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
       boxShadow: visible ? "0 6px 22px rgba(4,29,54,0.13)" : "none", borderBottom: "1px solid #eef1f6",
       transform: visible ? "translateY(0)" : "translateY(-14px)", opacity: visible ? 1 : 0,
       pointerEvents: visible ? "auto" : "none",
