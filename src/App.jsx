@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 
 // ─── API CONFIG ───────────────────────────────────────────────────────────────
 // In dev (vite) the API runs on the local Express server at :3001.
@@ -93,23 +93,6 @@ function useScrollProgress() {
   return p;
 }
 
-// True once a sentinel placed just below the hero scrolls under the header,
-// false again when the hero re-enters — drives the smart sticky category bar.
-function usePassedHero(ref, offset = 56) {
-  const [passed, setPassed] = useState(false);
-  useEffect(() => {
-    const onScroll = () => {
-      const el = ref.current;
-      if (el) setPassed(el.getBoundingClientRect().top <= offset);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
-  }, [ref, offset]);
-  return passed;
-}
-
 // Hero motion graphics — three parallax depth layers (background gradient shapes,
 // mid clouds + route path, foreground airplane + travel icons). Pure SVG/CSS with
 // direct-DOM transforms on scroll (no React re-renders) for performance.
@@ -176,38 +159,80 @@ function HeroMotion({ isMobile }) {
         <svg style={{ ...icon, bottom: "27%", right: "20%", animation: "heroFloat 6.5s ease-in-out infinite" }} width={isMobile ? 20 : 30} height={isMobile ? 20 : 30} viewBox="0 0 24 24" fill="#ffffff" aria-hidden>
           <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm3.5 6.5-2 5-5 2 2-5 5-2z" />
         </svg>
+        <svg style={{ ...icon, top: "30%", left: "17%", animation: "heroFloat 7.5s ease-in-out infinite" }} width={isMobile ? 22 : 32} height={isMobile ? 22 : 32} viewBox="0 0 24 24" fill="#ffffff" aria-hidden>
+          <path d="M12 2c-4 0-8 .5-8 4v9a3 3 0 0 0 3 3l-2 3h2l2-2h6l2 2h2l-2-3a3 3 0 0 0 3-3V6c0-3.5-4-4-8-4zM6.5 14a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm11 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM11 9H6V6h5v3zm7 0h-5V6h5v3z" />
+        </svg>
       </div>
     </div>
   );
 }
 
-// Slim category bar that slides in under the header once you scroll past the hero.
-function StickyCategoryBar({ activeCategory, setActiveCategory, visible, isMobile }) {
+// Morphing category nav — a single fixed bar that interpolates between its
+// embedded position inside the hero card and a docked top bar, driven by scroll.
+// transform/width/blur are written straight to the DOM via rAF (60fps, no React
+// re-renders), so the nav physically lifts and docks with no jump or teleport.
+function MorphCategoryNav({ categories, activeCategory, setActiveCategory, anchorRef, isMobile }) {
+  const barRef = useRef(null);
+  const innerRef = useRef(null);
+  const H = isMobile ? 50 : 58;
+  useLayoutEffect(() => {
+    let raf = 0;
+    const DOCK_TOP = 56;
+    const RANGE = 150;
+    const apply = () => {
+      raf = 0;
+      const a = anchorRef.current, bar = barRef.current;
+      if (!a || !bar) return;
+      const r = a.getBoundingClientRect();
+      const top = Math.max(DOCK_TOP, r.top);
+      const p = Math.min(1, Math.max(0, 1 - (r.top - DOCK_TOP) / RANGE));
+      const left = r.left * (1 - p);
+      const width = r.width + (window.innerWidth - r.width) * p;
+      bar.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+      bar.style.width = `${width}px`;
+      bar.style.height = `${H - 6 * p}px`;
+      const rad = 22 * (1 - p);
+      bar.style.borderRadius = `${rad}px ${rad}px 0 0`;
+      bar.style.background = `rgba(255,255,255,${1 - 0.15 * p})`;
+      const blur = 16 * p;
+      bar.style.backdropFilter = blur > 0.5 ? `blur(${blur}px)` : "none";
+      bar.style.WebkitBackdropFilter = bar.style.backdropFilter;
+      bar.style.boxShadow = `0 ${10 * p}px ${30 * p}px rgba(4,29,54,${0.16 * p})`;
+      bar.style.borderBottom = `1px solid rgba(238,241,246,${1 - p})`;
+      bar.style.opacity = "1";
+      if (innerRef.current) innerRef.current.style.transform = `scale(${1 - 0.05 * p})`;
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(apply); };
+    apply();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, [anchorRef, H]);
   return (
-    <div style={{
-      position: "fixed", top: 56, left: 0, right: 0, zIndex: 96,
-      background: "rgba(255,255,255,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
-      boxShadow: "0 6px 24px rgba(4,29,54,0.14)", borderBottom: "1px solid rgba(255,255,255,0.55)",
-      transform: visible ? "translateY(0)" : "translateY(-130%)",
-      opacity: visible ? 1 : 0,
-      transition: "transform .42s cubic-bezier(.2,.8,.2,1), opacity .42s ease",
-      willChange: "transform, opacity",
-      display: "flex", gap: 4, padding: isMobile ? "7px 10px" : "8px 16px",
-      overflowX: "auto", scrollbarWidth: "none", justifyContent: isMobile ? "flex-start" : "center",
+    <div ref={barRef} style={{
+      position: "fixed", top: 0, left: 0, zIndex: 90, opacity: 0,
+      height: H, display: "flex", alignItems: "center",
+      overflowX: "auto", overflowY: "hidden", scrollbarWidth: "none",
+      willChange: "transform, width, background, box-shadow",
     }}>
-      {categories.map((cat) => (
-        <button key={cat.id}
-          onClick={() => { setActiveCategory(cat.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-          style={{
-            border: "none", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap",
-            background: cat.id === activeCategory ? "#EAF1FC" : "transparent",
-            color: cat.id === activeCategory ? "#0B4DA2" : "#555",
-            fontWeight: cat.id === activeCategory ? 700 : 600, fontSize: 13,
-            padding: "8px 14px", display: "flex", alignItems: "center", gap: 6,
-          }}>
-          <span>{cat.icon}</span> {cat.label}
-        </button>
-      ))}
+      <div ref={innerRef} style={{ display: "flex", alignItems: "center", padding: "0 12px", transformOrigin: "left center", whiteSpace: "nowrap" }}>
+        {categories.map((cat) => (
+          <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
+            onMouseEnter={e => { e.currentTarget.style.color = "#0B4DA2"; }}
+            onMouseLeave={e => { if (activeCategory !== cat.id) e.currentTarget.style.color = "#666"; }}
+            style={{
+              border: "none", background: "none", cursor: "pointer", whiteSpace: "nowrap",
+              padding: isMobile ? "9px 13px" : "12px 20px",
+              fontSize: isMobile ? 13 : 14.5,
+              fontWeight: activeCategory === cat.id ? 700 : 500,
+              color: activeCategory === cat.id ? "#0B4DA2" : "#666",
+              borderBottom: activeCategory === cat.id ? "3px solid #0B4DA2" : "3px solid transparent",
+              display: "flex", alignItems: "center", gap: 6, transition: "color .2s",
+            }}>
+            <span>{cat.icon}</span> {cat.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1115,8 +1140,7 @@ export default function WanderlustApp() {
   const [activeCategory, setActiveCategory] = useState("flights");
   const isMobile = useIsMobile();
   const scrolled = useScrolled();
-  const heroSentinel = useRef(null);
-  const stickyVisible = usePassedHero(heroSentinel);
+  const navAnchor = useRef(null);
   const progress = useScrollProgress();
 
   return (
@@ -1128,8 +1152,8 @@ export default function WanderlustApp() {
         <div style={{ position: "absolute", top: -10, left: `${progress * 100}%`, transform: "translateX(-50%)", fontSize: 15, transition: "left .1s linear" }}>✈️</div>
       </div>
 
-      {/* Sticky category bar (appears past the hero) */}
-      <StickyCategoryBar activeCategory={activeCategory} setActiveCategory={setActiveCategory} visible={stickyVisible} isMobile={isMobile} />
+      {/* Morphing category nav: docks to the top on scroll, returns into the hero */}
+      <MorphCategoryNav categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} anchorRef={navAnchor} isMobile={isMobile} />
 
       {/* BANNER */}
       <div style={{ background: "linear-gradient(90deg, #1a1a2e, #16213e)", color: "#aaa", fontSize: 12, textAlign: "center", padding: "6px 0", letterSpacing: 0.5 }}>
@@ -1177,30 +1201,13 @@ export default function WanderlustApp() {
 
         {/* SEARCH CARD */}
         <div style={{ maxWidth: isMobile ? "100%" : 1120, margin: "0 auto", background: "#fff", borderRadius: 22, boxShadow: "0 24px 70px rgba(4,29,54,0.30)", position: "relative", zIndex: 10 }}>
-          {/* CATEGORY TABS */}
-          <div style={{ display: "flex", overflowX: "auto", borderBottom: "1px solid #f0f0f0", padding: "0 16px", scrollbarWidth: "none" }}>
-            {categories.map(cat => (
-              <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
-                onMouseEnter={e => { e.currentTarget.style.color = "#0B4DA2"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                onMouseLeave={e => { if (activeCategory !== cat.id) e.currentTarget.style.color = "#666"; e.currentTarget.style.transform = "none"; }}
-                style={{
-                border: "none", background: "none", padding: isMobile ? "14px 16px" : "17px 26px", cursor: "pointer",
-                fontSize: isMobile ? 13 : 14.5, fontWeight: activeCategory === cat.id ? 700 : 500,
-                color: activeCategory === cat.id ? "#0B4DA2" : "#666",
-                borderBottom: activeCategory === cat.id ? "3px solid #0B4DA2" : "3px solid transparent",
-                whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, transition: "color .2s, transform .2s",
-              }}>
-                <span>{cat.icon}</span> {cat.label}
-              </button>
-            ))}
-          </div>
+          {/* Category nav lives in <MorphCategoryNav>; this anchor reserves its in-card space */}
+          <div ref={navAnchor} aria-hidden style={{ height: isMobile ? 50 : 58 }} />
 
           <SearchForm activeCategory={activeCategory} isMobile={isMobile} />
         </div>
         </div>
       </div>
-
-      <div ref={heroSentinel} aria-hidden style={{ height: 1 }} />
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "28px 14px" : "40px 24px" }}>
         {/* SPECIAL FARES */}
