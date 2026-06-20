@@ -110,9 +110,9 @@ function usePassedHero(ref, offset = 56) {
   return passed;
 }
 
-// Hero motion graphics: parallax clouds, a self-drawing flight path, and an
-// airplane that drifts with scroll. Pure SVG/CSS + direct-DOM transforms
-// (no React re-renders on scroll) for performance.
+// Hero motion graphics — three parallax depth layers (background gradient shapes,
+// mid clouds + route path, foreground airplane + travel icons). Pure SVG/CSS with
+// direct-DOM transforms on scroll (no React re-renders) for performance.
 function Cloud({ w }) {
   return (
     <svg width={w} viewBox="0 0 100 56" fill="#ffffff" aria-hidden>
@@ -121,16 +121,14 @@ function Cloud({ w }) {
   );
 }
 function HeroMotion({ isMobile }) {
-  const planeRef = useRef(null);
-  const cloudA = useRef(null);
-  const cloudB = useRef(null);
+  const bg = useRef(null), mid = useRef(null), fg = useRef(null);
   useEffect(() => {
     let raf = 0;
     const apply = () => {
       const y = window.scrollY;
-      if (planeRef.current) planeRef.current.style.transform = `translate3d(${y * 0.06}px, ${y * 0.32}px, 0)`;
-      if (cloudA.current) cloudA.current.style.transform = `translate3d(${-y * 0.12}px, 0, 0)`;
-      if (cloudB.current) cloudB.current.style.transform = `translate3d(${y * 0.16}px, 0, 0)`;
+      if (bg.current) bg.current.style.transform = `translate3d(0, ${y * 0.07}px, 0)`;
+      if (mid.current) mid.current.style.transform = `translate3d(0, ${y * 0.18}px, 0)`;
+      if (fg.current) fg.current.style.transform = `translate3d(0, ${y * 0.36}px, 0)`;
       raf = 0;
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(apply); };
@@ -138,22 +136,46 @@ function HeroMotion({ isMobile }) {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
   }, []);
+  const icon = { position: "absolute", opacity: 0.22, filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.3))" };
   return (
     <div aria-hidden style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none", overflow: "hidden" }}>
-      {/* self-drawing flight path */}
-      <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} viewBox="0 0 1000 460" preserveAspectRatio="xMidYMid slice" aria-hidden>
-        <path d="M-40 430 C 240 380, 430 210, 1040 70" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="2" strokeDasharray="1400" strokeDashoffset="1400" vectorEffect="non-scaling-stroke" style={{ animation: "drawPath 3s ease forwards .4s" }} />
-      </svg>
-      {/* parallax clouds */}
-      <div ref={cloudA} style={{ position: "absolute", top: "16%", left: "5%", opacity: 0.5, willChange: "transform" }}><Cloud w={isMobile ? 64 : 120} /></div>
-      <div ref={cloudB} style={{ position: "absolute", top: "30%", right: "7%", opacity: 0.32, willChange: "transform" }}><Cloud w={isMobile ? 46 : 92} /></div>
-      {/* airplane: scroll-parallax (outer) + gentle float (inner) */}
-      <div ref={planeRef} style={{ position: "absolute", top: isMobile ? "9%" : "16%", right: isMobile ? "9%" : "15%", willChange: "transform" }}>
-        <div style={{ animation: "heroFloat 5s ease-in-out infinite" }}>
-          <svg width={isMobile ? 34 : 56} height={isMobile ? 34 : 56} viewBox="0 0 24 24" fill="#ffffff" style={{ filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.35))" }} aria-hidden>
-            <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5L21 16z" />
-          </svg>
+      {/* BACKGROUND layer — soft gradient shapes + abstract globe (slowest) */}
+      <div ref={bg} style={{ position: "absolute", inset: 0, willChange: "transform" }}>
+        <div style={{ position: "absolute", top: "-12%", left: "-7%", width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle, rgba(23,104,209,0.38), transparent 70%)", filter: "blur(6px)" }} />
+        <div style={{ position: "absolute", bottom: "-22%", right: "-9%", width: 460, height: 460, borderRadius: "50%", background: "radial-gradient(circle, rgba(11,77,162,0.34), transparent 70%)", filter: "blur(10px)" }} />
+        <svg style={{ position: "absolute", top: "6%", right: "28%", width: isMobile ? 120 : 230, opacity: 0.12 }} viewBox="0 0 100 100" fill="none" stroke="#ffffff" strokeWidth="1" aria-hidden>
+          <circle cx="50" cy="50" r="46" />
+          <ellipse cx="50" cy="50" rx="46" ry="18" />
+          <ellipse cx="50" cy="50" rx="20" ry="46" />
+          <line x1="4" y1="50" x2="96" y2="50" />
+        </svg>
+      </div>
+      {/* MID layer — self-drawing route path + clouds (medium) */}
+      <div ref={mid} style={{ position: "absolute", inset: 0, willChange: "transform" }}>
+        <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} viewBox="0 0 1000 460" preserveAspectRatio="xMidYMid slice" aria-hidden>
+          <path d="M-40 430 C 240 380, 430 210, 1040 70" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeDasharray="1400" strokeDashoffset="1400" vectorEffect="non-scaling-stroke" style={{ animation: "drawPath 3s ease forwards .4s" }} />
+        </svg>
+        <div style={{ position: "absolute", top: "15%", left: "5%", opacity: 0.5 }}><Cloud w={isMobile ? 64 : 120} /></div>
+        <div style={{ position: "absolute", top: "34%", right: "8%", opacity: 0.34 }}><Cloud w={isMobile ? 46 : 92} /></div>
+      </div>
+      {/* FOREGROUND layer — airplane + travel icons (fastest) */}
+      <div ref={fg} style={{ position: "absolute", inset: 0, willChange: "transform" }}>
+        <div style={{ position: "absolute", top: isMobile ? "9%" : "15%", right: isMobile ? "9%" : "14%" }}>
+          <div style={{ animation: "heroFloat 5s ease-in-out infinite" }}>
+            <svg width={isMobile ? 34 : 58} height={isMobile ? 34 : 58} viewBox="0 0 24 24" fill="#ffffff" style={{ filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.35))" }} aria-hidden>
+              <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5L21 16z" />
+            </svg>
+          </div>
         </div>
+        <svg style={{ ...icon, top: "23%", left: "8%", animation: "heroFloat 6s ease-in-out infinite" }} width={isMobile ? 22 : 34} height={isMobile ? 22 : 34} viewBox="0 0 24 24" fill="#ffffff" aria-hidden>
+          <path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z" />
+        </svg>
+        <svg style={{ ...icon, bottom: "17%", left: "14%", animation: "heroFloat 7s ease-in-out infinite" }} width={isMobile ? 22 : 32} height={isMobile ? 22 : 32} viewBox="0 0 24 24" fill="#ffffff" aria-hidden>
+          <path d="M9 4h6a2 2 0 0 1 2 2v1h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2V6a2 2 0 0 1 2-2zm0 3h6V6H9v1z" />
+        </svg>
+        <svg style={{ ...icon, bottom: "27%", right: "20%", animation: "heroFloat 6.5s ease-in-out infinite" }} width={isMobile ? 20 : 30} height={isMobile ? 20 : 30} viewBox="0 0 24 24" fill="#ffffff" aria-hidden>
+          <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm3.5 6.5-2 5-5 2 2-5 5-2z" />
+        </svg>
       </div>
     </div>
   );
