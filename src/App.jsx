@@ -76,6 +76,51 @@ function Reveal({ children, delay = 0 }) {
   );
 }
 
+// Page scroll progress 0..1 (drives the little flight-mover indicator).
+function useScrollProgress() {
+  const [p, setP] = useState(0);
+  useEffect(() => {
+    const onScroll = () => {
+      const el = document.documentElement;
+      const max = el.scrollHeight - el.clientHeight;
+      setP(max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) : 0);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
+  }, []);
+  return p;
+}
+
+// Slim category bar that slides in under the header once you scroll past the hero.
+function StickyCategoryBar({ activeCategory, setActiveCategory, visible, isMobile }) {
+  return (
+    <div style={{
+      position: "fixed", top: 56, left: 0, right: 0, zIndex: 96,
+      background: "#fff", boxShadow: "0 4px 16px rgba(4,29,54,0.12)",
+      transform: visible ? "translateY(0)" : "translateY(-130%)",
+      transition: "transform .32s cubic-bezier(.2,.8,.2,1)",
+      display: "flex", gap: 4, padding: isMobile ? "7px 10px" : "8px 16px",
+      overflowX: "auto", scrollbarWidth: "none", justifyContent: isMobile ? "flex-start" : "center",
+    }}>
+      {categories.map((cat) => (
+        <button key={cat.id}
+          onClick={() => { setActiveCategory(cat.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          style={{
+            border: "none", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap",
+            background: cat.id === activeCategory ? "#EAF1FC" : "transparent",
+            color: cat.id === activeCategory ? "#0B4DA2" : "#555",
+            fontWeight: cat.id === activeCategory ? 700 : 600, fontSize: 13,
+            padding: "8px 14px", display: "flex", alignItems: "center", gap: 6,
+          }}>
+          <span>{cat.icon}</span> {cat.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── DATASETS per category ────────────────────────────────────────────────────
 
 const FLIGHT_CITIES = {
@@ -303,7 +348,7 @@ function CityPicker({ value, onChange, placeholder, exclude, dataset, isMobile }
       <div onClick={() => setOpen(o => !o)} style={{ cursor: "pointer", minHeight: 48 }}>
         {value ? (
           <>
-            <div style={{ fontSize: 26, fontWeight: 900, color: "#1a1a2e", lineHeight: 1 }}>{value.name}</div>
+            <div style={{ fontSize: 30, fontWeight: 900, color: "#1a1a2e", lineHeight: 1 }}>{value.name}</div>
             <div style={{ fontSize: 11, color: "#999", marginTop: 3 }}>
               {value.code} · {value.sub.length > 30 ? value.sub.slice(0, 30) + "…" : value.sub}
             </div>
@@ -712,7 +757,7 @@ function SearchForm({ activeCategory, isMobile }) {
 
         {trainTab === "book" && (
           <>
-            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "flex-start", padding: isMobile ? "16px 16px 4px" : "20px 24px 8px", gap: isMobile ? 4 : 0 }}>
+            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "flex-start", padding: isMobile ? "20px 16px 6px" : "28px 32px 12px", gap: isMobile ? 4 : 0 }}>
               <div style={{ flex: 2, minWidth: 160, padding: "12px 20px 12px 0", borderRight: isMobile ? "none" : "1px solid #eee" }}>
                 <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>FROM STATION</div>
                 <CityPicker value={from} onChange={setFrom} placeholder="Select station" exclude={to} dataset={dataset} isMobile={isMobile} />
@@ -750,7 +795,7 @@ function SearchForm({ activeCategory, isMobile }) {
               <button onClick={searchTrains} disabled={!from || !to || trainLoading} style={{
                 background: !from || !to || trainLoading ? "#ccc" : "linear-gradient(135deg, #0B4DA2, #1768D1)",
                 color: "#fff", border: "none", borderRadius: 12,
-                padding: "14px 64px", fontSize: 17, fontWeight: 800,
+                padding: "16px 78px", fontSize: 18, fontWeight: 800,
                 cursor: !from || !to || trainLoading ? "default" : "pointer",
                 boxShadow: from && to && !trainLoading ? "0 6px 20px rgba(11,77,162,0.32)" : "none",
               }}>{trainLoading ? "⏳ Searching…" : "🔍 SEARCH TRAINS"}</button>
@@ -835,7 +880,7 @@ function SearchForm({ activeCategory, isMobile }) {
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "flex-start", padding: isMobile ? "16px 16px 4px" : "20px 24px 8px", gap: isMobile ? 4 : 0 }}>
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "flex-start", padding: isMobile ? "20px 16px 6px" : "28px 32px 12px", gap: isMobile ? 4 : 0 }}>
         {/* FROM */}
         <div style={{ flex: 2, minWidth: 160, padding: "12px 20px 12px 0", borderRight: isMobile ? "none" : "1px solid #eee" }}>
           <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>{meta.fromLabel}</div>
@@ -897,7 +942,7 @@ function SearchForm({ activeCategory, isMobile }) {
           style={{
             background: activeCategory === "flights" && (!from || !to || flightLoading) ? "#b9c4d6" : "linear-gradient(135deg, #0B4DA2, #1768D1)",
             color: "#fff", border: "none",
-            borderRadius: 12, padding: "14px 64px", fontSize: 17, fontWeight: 800,
+            borderRadius: 12, padding: "16px 78px", fontSize: 18, fontWeight: 800,
             cursor: activeCategory === "flights" && (!from || !to || flightLoading) ? "default" : "pointer",
             boxShadow: "0 6px 20px rgba(11,77,162,0.32)", transition: "transform .15s",
           }}
@@ -973,9 +1018,20 @@ export default function WanderlustApp() {
   const [activeCategory, setActiveCategory] = useState("flights");
   const isMobile = useIsMobile();
   const scrolled = useScrolled();
+  const pastHero = useScrolled(360);
+  const progress = useScrollProgress();
 
   return (
     <div style={{ fontFamily: "'Segoe UI', sans-serif", background: "#F5F7FA", minHeight: "100vh" }}>
+
+      {/* Scroll-progress flight mover */}
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 3, background: "rgba(11,77,162,0.12)", zIndex: 300, pointerEvents: "none" }}>
+        <div style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #0B4DA2, #1768D1)", transition: "width .1s linear" }} />
+        <div style={{ position: "absolute", top: -10, left: `${progress * 100}%`, transform: "translateX(-50%)", fontSize: 15, transition: "left .1s linear" }}>✈️</div>
+      </div>
+
+      {/* Sticky category bar (appears past the hero) */}
+      <StickyCategoryBar activeCategory={activeCategory} setActiveCategory={setActiveCategory} visible={pastHero} isMobile={isMobile} />
 
       {/* BANNER */}
       <div style={{ background: "linear-gradient(90deg, #1a1a2e, #16213e)", color: "#aaa", fontSize: 12, textAlign: "center", padding: "6px 0", letterSpacing: 0.5 }}>
@@ -1001,21 +1057,27 @@ export default function WanderlustApp() {
       </nav>
 
       {/* HERO */}
-      <div style={{ backgroundImage: "linear-gradient(180deg, rgba(6,27,58,0.78) 0%, rgba(8,42,92,0.62) 60%, rgba(8,42,92,0.55) 100%), url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80')", backgroundSize: "cover", backgroundPosition: "center", padding: isMobile ? "44px 14px 40px" : "72px 32px 52px", position: "relative", overflow: "visible" }}>
+      <div style={{ position: "relative", overflow: "visible", padding: isMobile ? "52px 14px 52px" : "92px 32px 68px" }}>
+        {/* Animated cover photo (Ken Burns), clipped to the hero, behind a blue overlay */}
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0 }}>
+          <div style={{ position: "absolute", inset: "-5%", backgroundImage: "url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80')", backgroundSize: "cover", backgroundPosition: "center", animation: "kenburns 28s ease-in-out infinite", willChange: "transform" }} />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(6,27,58,0.78) 0%, rgba(8,42,92,0.62) 55%, rgba(8,42,92,0.62) 100%)" }} />
+        </div>
+        <div style={{ position: "relative", zIndex: 2 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontSize: 13, color: "#8FBEFF", fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>YOUR JOURNEY BEGINS HERE</div>
-          <h1 style={{ color: "#fff", fontSize: isMobile ? 24 : 36, fontWeight: 800, margin: 0, lineHeight: 1.2 }}>Explore the World with <span style={{ color: "#8FBEFF" }}>Wanderlust</span></h1>
-          <p style={{ color: "#8899aa", marginTop: 10, fontSize: isMobile ? 13 : 15 }}>Flights · Hotels · Tours · Trains · Buses — all in one place</p>
+          <h1 style={{ color: "#fff", fontSize: isMobile ? 28 : 44, fontWeight: 800, margin: 0, lineHeight: 1.15, textShadow: "0 2px 18px rgba(0,0,0,0.35)" }}>Explore the World with <span style={{ color: "#8FBEFF" }}>Wanderlust</span></h1>
+          <p style={{ color: "#cdd8e8", marginTop: 12, fontSize: isMobile ? 14 : 17 }}>Flights · Hotels · Tours · Trains · Buses — all in one place</p>
         </div>
 
         {/* SEARCH CARD */}
-        <div style={{ maxWidth: 1000, margin: "0 auto", background: "#fff", borderRadius: 20, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", position: "relative", zIndex: 10 }}>
+        <div style={{ maxWidth: isMobile ? "100%" : 1120, margin: "0 auto", background: "#fff", borderRadius: 22, boxShadow: "0 24px 70px rgba(4,29,54,0.30)", position: "relative", zIndex: 10 }}>
           {/* CATEGORY TABS */}
           <div style={{ display: "flex", overflowX: "auto", borderBottom: "1px solid #f0f0f0", padding: "0 16px", scrollbarWidth: "none" }}>
             {categories.map(cat => (
               <button key={cat.id} onClick={() => setActiveCategory(cat.id)} style={{
-                border: "none", background: "none", padding: "14px 18px", cursor: "pointer",
-                fontSize: 13, fontWeight: activeCategory === cat.id ? 700 : 500,
+                border: "none", background: "none", padding: isMobile ? "14px 16px" : "17px 26px", cursor: "pointer",
+                fontSize: isMobile ? 13 : 14.5, fontWeight: activeCategory === cat.id ? 700 : 500,
                 color: activeCategory === cat.id ? "#0B4DA2" : "#666",
                 borderBottom: activeCategory === cat.id ? "3px solid #0B4DA2" : "3px solid transparent",
                 whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6,
@@ -1026,6 +1088,7 @@ export default function WanderlustApp() {
           </div>
 
           <SearchForm activeCategory={activeCategory} isMobile={isMobile} />
+        </div>
         </div>
       </div>
 

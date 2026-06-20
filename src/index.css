@@ -27,3 +27,15 @@ img {
 *::-webkit-scrollbar {
   height: 0;
 }
+
+/* Animated hero cover (slow Ken Burns zoom) */
+@keyframes kenburns {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
