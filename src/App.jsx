@@ -32,6 +32,43 @@ function useIsMobile(breakpoint = 640) {
   return isMobile;
 }
 
+// Tracks whether the page has scrolled past a threshold (drives header anim).
+function useScrolled(threshold = 12) {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > threshold);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [threshold]);
+  return scrolled;
+}
+
+// Fade-and-rise wrapper that animates its children into view on scroll.
+function Reveal({ children, delay = 0 }) {
+  const ref = useRef(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setShown(true); io.disconnect(); } },
+      { threshold: 0.12 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div ref={ref} style={{
+      opacity: shown ? 1 : 0,
+      transform: shown ? "translateY(0)" : "translateY(28px)",
+      transition: `opacity .6s ease ${delay}ms, transform .6s ease ${delay}ms`,
+    }}>
+      {children}
+    </div>
+  );
+}
+
 // ─── DATASETS per category ────────────────────────────────────────────────────
 
 const FLIGHT_CITIES = {
@@ -220,10 +257,10 @@ const destinations = [
 ];
 
 const offers = [
-  { title: "Early Bird Discount", desc: "Book 30 days in advance & save up to 25% on any package", badge: "25% OFF", color: "#FF6B35", bg: "#FFF3EE" },
-  { title: "Couple Special", desc: "Exclusive honeymoon packages starting at ₹49,999 per couple", badge: "HOT DEAL", color: "#E91E63", bg: "#FDF2F6" },
-  { title: "Group Getaway", desc: "Travel with 6+ friends and get one FREE booking on tours", badge: "1 FREE", color: "#00897B", bg: "#F0FAF9" },
-  { title: "Flash Sale", desc: "48-hour sale — Flights from Delhi to Goa starting ₹1,499", badge: "FLASH", color: "#6C3FC5", bg: "#F5F0FF" },
+  { title: "Early Bird Discount", desc: "Book 30 days in advance & save up to 25% on any package", badge: "25% OFF", color: "#0B4DA2", bg: "#EAF1FC" },
+  { title: "Couple Special", desc: "Exclusive honeymoon packages starting at ₹49,999 per couple", badge: "HOT DEAL", color: "#1768D1", bg: "#EAF1FC" },
+  { title: "Group Getaway", desc: "Travel with 6+ friends and get one FREE booking on tours", badge: "1 FREE", color: "#0E6BB8", bg: "#E8F2FB" },
+  { title: "Flash Sale", desc: "48-hour sale — Flights from Delhi to Goa starting ₹1,499", badge: "FLASH", color: "#0B4DA2", bg: "#EAF1FC" },
 ];
 
 const navLinks = ["My Trips", "Wishlist", "Offers", "Support"];
@@ -299,7 +336,7 @@ function CityPicker({ value, onChange, placeholder, exclude, dataset, isMobile }
                         border: "1.5px solid #e8e8e8", borderRadius: 8, padding: "6px 12px",
                         background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#333",
                       }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = "#FF6B35"; e.currentTarget.style.color = "#FF6B35"; e.currentTarget.style.background = "#FFF3EE"; }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = "#0B4DA2"; e.currentTarget.style.color = "#0B4DA2"; e.currentTarget.style.background = "#EAF1FC"; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = "#e8e8e8"; e.currentTarget.style.color = "#333"; e.currentTarget.style.background = "#fff"; }}
                       >{city.name}</button>
                     ))}
@@ -318,13 +355,13 @@ function CityRow({ city, onSelect }) {
   const [hov, setHov] = useState(false);
   return (
     <div onClick={() => onSelect(city)} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", cursor: "pointer", background: hov ? "#FFF3EE" : "#fff", transition: "background .15s" }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: hov ? "#FF6B35" : "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, transition: "background .15s", flexShrink: 0 }}>📍</div>
+      style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", cursor: "pointer", background: hov ? "#EAF1FC" : "#fff", transition: "background .15s" }}>
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: hov ? "#0B4DA2" : "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, transition: "background .15s", flexShrink: 0 }}>📍</div>
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: "#1a1a2e" }}>{city.name}</div>
         <div style={{ fontSize: 11, color: "#999" }}>{city.sub}</div>
       </div>
-      <div style={{ fontSize: 12, fontWeight: 800, color: "#FF6B35" }}>{city.code}</div>
+      <div style={{ fontSize: 12, fontWeight: 800, color: "#0B4DA2" }}>{city.code}</div>
     </div>
   );
 }
@@ -364,7 +401,7 @@ function TrainLiveStatus() {
           <input value={trainNo} onChange={e => setTrainNo(e.target.value.replace(/\D/g, "").slice(0, 5))}
             placeholder="e.g. 12301"
             style={{ border: "none", borderBottom: "2px solid #eee", outline: "none", fontSize: 22, fontWeight: 800, color: "#1a1a2e", width: "100%", padding: "4px 0", background: "none" }}
-            onFocus={e => e.target.style.borderBottomColor = "#FF6B35"}
+            onFocus={e => e.target.style.borderBottomColor = "#0B4DA2"}
             onBlur={e => e.target.style.borderBottomColor = "#eee"}
             onKeyDown={e => e.key === "Enter" && check()}
           />
@@ -374,7 +411,7 @@ function TrainLiveStatus() {
           <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>DATE OF JOURNEY</div>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
             style={{ border: "none", borderBottom: "2px solid #eee", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", width: "100%", padding: "4px 0", background: "none" }}
-            onFocus={e => e.target.style.borderBottomColor = "#FF6B35"}
+            onFocus={e => e.target.style.borderBottomColor = "#0B4DA2"}
             onBlur={e => e.target.style.borderBottomColor = "#eee"}
           />
         </div>
@@ -385,7 +422,7 @@ function TrainLiveStatus() {
           <input value={myStop} onChange={e => setMyStop(e.target.value)}
             placeholder="e.g. Bhopal or BPL"
             style={{ border: "none", borderBottom: "2px solid #eee", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", width: "100%", padding: "4px 0", background: "none" }}
-            onFocus={e => e.target.style.borderBottomColor = "#FF6B35"}
+            onFocus={e => e.target.style.borderBottomColor = "#0B4DA2"}
             onBlur={e => e.target.style.borderBottomColor = "#eee"}
           />
           <div style={{ fontSize: 12, color: "#bbb", marginTop: 4 }}>Station name or code</div>
@@ -394,11 +431,11 @@ function TrainLiveStatus() {
 
       <div style={{ textAlign: "center", marginTop: 24 }}>
         <button onClick={check} disabled={loading || !trainNo} style={{
-          background: loading || !trainNo ? "#ccc" : "linear-gradient(135deg, #FF6B35, #F7931E)",
+          background: loading || !trainNo ? "#ccc" : "linear-gradient(135deg, #0B4DA2, #1768D1)",
           color: "#fff", border: "none", borderRadius: 12,
           padding: "14px 56px", fontSize: 16, fontWeight: 800,
           cursor: loading || !trainNo ? "default" : "pointer",
-          boxShadow: !loading && trainNo ? "0 6px 20px rgba(255,107,53,0.4)" : "none",
+          boxShadow: !loading && trainNo ? "0 6px 20px rgba(11,77,162,0.32)" : "none",
         }}>{loading ? "⏳ Fetching Live Status…" : "🔍 CHECK STATUS"}</button>
       </div>
 
@@ -422,7 +459,7 @@ function TrainLiveStatus() {
                 <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <span style={{ background: "#00C853", color: "#fff", fontSize: 12, fontWeight: 700, padding: "3px 12px", borderRadius: 20 }}>🟢 Running</span>
                   {delay !== "On time"
-                    ? <span style={{ background: "#FFF3EE", color: "#FF6B35", fontSize: 12, fontWeight: 700, padding: "3px 12px", borderRadius: 20 }}>⏱ {delay} late</span>
+                    ? <span style={{ background: "#EAF1FC", color: "#0B4DA2", fontSize: 12, fontWeight: 700, padding: "3px 12px", borderRadius: 20 }}>⏱ {delay} late</span>
                     : <span style={{ background: "#E8F5E9", color: "#00C853", fontSize: 12, fontWeight: 700, padding: "3px 12px", borderRadius: 20 }}>✅ On Time</span>
                   }
                 </div>
@@ -431,7 +468,7 @@ function TrainLiveStatus() {
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 11, color: "#999", fontWeight: 700 }}>CURRENTLY AT / NEAR</div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: "#1a1a2e" }}>{current.name}</div>
-                  <div style={{ fontSize: 13, color: "#FF6B35", fontWeight: 700 }}>{current.code}</div>
+                  <div style={{ fontSize: 13, color: "#0B4DA2", fontWeight: 700 }}>{current.code}</div>
                 </div>
               )}
             </div>
@@ -500,7 +537,7 @@ function PNRStatus() {
     if (!s) return "#999";
     const u = s.toUpperCase();
     if (u.includes("CNF") || u.includes("CONFIRM")) return "#00C853";
-    if (u.includes("WL") || u.includes("WAIT")) return "#FF6B35";
+    if (u.includes("WL") || u.includes("WAIT")) return "#0B4DA2";
     if (u.includes("CAN")) return "#E91E63";
     return "#555";
   };
@@ -512,7 +549,7 @@ function PNRStatus() {
         <input value={pnr} onChange={e => setPnr(e.target.value.replace(/\D/g, "").slice(0, 10))}
           placeholder="Enter 10-digit PNR"
           style={{ border: "none", borderBottom: "2px solid #eee", outline: "none", fontSize: 22, fontWeight: 800, color: "#1a1a2e", width: "100%", padding: "4px 0", background: "none", letterSpacing: 3 }}
-          onFocus={e => e.target.style.borderBottomColor = "#FF6B35"}
+          onFocus={e => e.target.style.borderBottomColor = "#0B4DA2"}
           onBlur={e => e.target.style.borderBottomColor = "#eee"}
           onKeyDown={e => e.key === "Enter" && check()}
         />
@@ -521,11 +558,11 @@ function PNRStatus() {
 
       <div style={{ marginTop: 20 }}>
         <button onClick={check} disabled={pnr.length < 10 || loading} style={{
-          background: pnr.length < 10 || loading ? "#ccc" : "linear-gradient(135deg, #FF6B35, #F7931E)",
+          background: pnr.length < 10 || loading ? "#ccc" : "linear-gradient(135deg, #0B4DA2, #1768D1)",
           color: "#fff", border: "none", borderRadius: 12,
           padding: "14px 48px", fontSize: 16, fontWeight: 800,
           cursor: pnr.length < 10 || loading ? "default" : "pointer",
-          boxShadow: pnr.length === 10 && !loading ? "0 6px 20px rgba(255,107,53,0.4)" : "none",
+          boxShadow: pnr.length === 10 && !loading ? "0 6px 20px rgba(11,77,162,0.32)" : "none",
         }}>{loading ? "⏳ Checking PNR…" : "🔍 CHECK PNR STATUS"}</button>
       </div>
 
@@ -630,17 +667,17 @@ function SearchForm({ activeCategory, isMobile }) {
         {/* Train sub-tabs */}
         <div style={{ display: "flex", gap: 24, padding: "16px 24px 0", borderBottom: "1px solid #f0f0f0", marginBottom: 0 }}>
           {[["book", "Book Train Tickets"], ["pnr", "Check PNR Status"], ["live", "Live Train Status"]].map(([val, lbl]) => (
-            <label key={val} onClick={() => setTrainTab(val)} style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", paddingBottom: 14, borderBottom: trainTab === val ? "2px solid #FF6B35" : "2px solid transparent", marginBottom: -1 }}>
+            <label key={val} onClick={() => setTrainTab(val)} style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", paddingBottom: 14, borderBottom: trainTab === val ? "2px solid #0B4DA2" : "2px solid transparent", marginBottom: -1 }}>
               <span style={{
                 width: 16, height: 16, borderRadius: "50%",
-                border: `2px solid ${trainTab === val ? "#FF6B35" : "#ccc"}`,
-                background: trainTab === val ? "#FF6B35" : "#fff",
+                border: `2px solid ${trainTab === val ? "#0B4DA2" : "#ccc"}`,
+                background: trainTab === val ? "#0B4DA2" : "#fff",
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                 flexShrink: 0,
               }}>
                 {trainTab === val && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", display: "block" }} />}
               </span>
-              <span style={{ fontSize: 13.5, fontWeight: trainTab === val ? 700 : 500, color: trainTab === val ? "#FF6B35" : "#555" }}>{lbl}</span>
+              <span style={{ fontSize: 13.5, fontWeight: trainTab === val ? 700 : 500, color: trainTab === val ? "#0B4DA2" : "#555" }}>{lbl}</span>
             </label>
           ))}
         </div>
@@ -653,11 +690,11 @@ function SearchForm({ activeCategory, isMobile }) {
                 <CityPicker value={from} onChange={setFrom} placeholder="Select station" exclude={to} dataset={dataset} isMobile={isMobile} />
               </div>
               <button onClick={swap} style={{
-                width: 36, height: 36, borderRadius: "50%", border: "2px solid #FF6B35", background: "#fff",
+                width: 36, height: 36, borderRadius: "50%", border: "2px solid #0B4DA2", background: "#fff",
                 cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
                 flexShrink: 0, zIndex: 1, margin: "20px -4px 0", transition: "all .2s",
               }}
-                onMouseEnter={e => { e.currentTarget.style.background = "#FF6B35"; e.currentTarget.style.color = "#fff"; }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#0B4DA2"; e.currentTarget.style.color = "#fff"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#000"; }}
               >⇌</button>
               <div style={{ flex: 2, minWidth: 160, padding: "12px 20px", borderRight: isMobile ? "none" : "1px solid #eee" }}>
@@ -676,18 +713,18 @@ function SearchForm({ activeCategory, isMobile }) {
                     style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #ddd", background: "#fff", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                   <span style={{ fontSize: 24, fontWeight: 900, color: "#1a1a2e" }}>{travellers}</span>
                   <button onClick={() => setTravellers(Math.min(9, travellers + 1))}
-                    style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #FF6B35", background: "#FF6B35", cursor: "pointer", fontSize: 16, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                    style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #0B4DA2", background: "#0B4DA2", cursor: "pointer", fontSize: 16, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                 </div>
                 <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>Passengers</div>
               </div>
             </div>
             <div style={{ textAlign: "center", padding: "12px 0 24px" }}>
               <button onClick={searchTrains} disabled={!from || !to || trainLoading} style={{
-                background: !from || !to || trainLoading ? "#ccc" : "linear-gradient(135deg, #FF6B35, #F7931E)",
+                background: !from || !to || trainLoading ? "#ccc" : "linear-gradient(135deg, #0B4DA2, #1768D1)",
                 color: "#fff", border: "none", borderRadius: 12,
                 padding: "14px 64px", fontSize: 17, fontWeight: 800,
                 cursor: !from || !to || trainLoading ? "default" : "pointer",
-                boxShadow: from && to && !trainLoading ? "0 6px 20px rgba(255,107,53,0.4)" : "none",
+                boxShadow: from && to && !trainLoading ? "0 6px 20px rgba(11,77,162,0.32)" : "none",
               }}>{trainLoading ? "⏳ Searching…" : "🔍 SEARCH TRAINS"}</button>
               {!from || !to ? (
                 <div style={{ marginTop: 8, color: "#aaa", fontSize: 13 }}>Select both stations to search</div>
@@ -716,7 +753,7 @@ function SearchForm({ activeCategory, isMobile }) {
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
                           <div>
                             <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e" }}>{t.trainName}</div>
-                            <div style={{ fontSize: 12, color: "#FF6B35", fontWeight: 700, marginTop: 2 }}>#{t.trainNumber}</div>
+                            <div style={{ fontSize: 12, color: "#0B4DA2", fontWeight: 700, marginTop: 2 }}>#{t.trainNumber}</div>
                           </div>
                           <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
                             <div style={{ textAlign: "center" }}>
@@ -736,7 +773,7 @@ function SearchForm({ activeCategory, isMobile }) {
                             {t.classes?.length > 0 && (
                               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                                 {t.classes.map((cls, ci) => (
-                                  <span key={ci} style={{ background: "#FFF3EE", color: "#FF6B35", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 8 }}>
+                                  <span key={ci} style={{ background: "#EAF1FC", color: "#0B4DA2", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 8 }}>
                                     {typeof cls === "object" ? cls.class_type || cls : cls}
                                   </span>
                                 ))}
@@ -770,8 +807,8 @@ function SearchForm({ activeCategory, isMobile }) {
       {activeCategory === "flights" && (
         <div style={{ padding: "14px 24px 0", display: "flex", gap: 24 }}>
           {[["oneway", "One Way"], ["roundtrip", "Round Trip"], ["multicity", "Multi City"]].map(([val, lbl]) => (
-            <label key={val} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 14, fontWeight: 500, color: tripType === val ? "#FF6B35" : "#555" }}>
-              <input type="radio" name="triptype" checked={tripType === val} onChange={() => setTripType(val)} style={{ accentColor: "#FF6B35", width: 15, height: 15 }} />
+            <label key={val} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 14, fontWeight: 500, color: tripType === val ? "#0B4DA2" : "#555" }}>
+              <input type="radio" name="triptype" checked={tripType === val} onChange={() => setTripType(val)} style={{ accentColor: "#0B4DA2", width: 15, height: 15 }} />
               {lbl}
             </label>
           ))}
@@ -790,11 +827,11 @@ function SearchForm({ activeCategory, isMobile }) {
         {/* SWAP (not for hotels/homestays) */}
         {!["hotels", "homestays"].includes(activeCategory) && (
           <button onClick={swap} style={{
-            width: 36, height: 36, borderRadius: "50%", border: "2px solid #FF6B35", background: "#fff",
+            width: 36, height: 36, borderRadius: "50%", border: "2px solid #0B4DA2", background: "#fff",
             cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
             flexShrink: 0, zIndex: 1, margin: "20px -4px 0", transition: "all .2s",
           }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#FF6B35"; e.currentTarget.style.color = "#fff"; }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#0B4DA2"; e.currentTarget.style.color = "#fff"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#000"; }}
           >⇌</button>
         )}
@@ -827,7 +864,7 @@ function SearchForm({ activeCategory, isMobile }) {
               style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #ddd", background: "#fff", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
             <span style={{ fontSize: 24, fontWeight: 900, color: "#1a1a2e" }}>{travellers}</span>
             <button onClick={() => setTravellers(Math.min(9, travellers + 1))}
-              style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #FF6B35", background: "#FF6B35", cursor: "pointer", fontSize: 16, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+              style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #0B4DA2", background: "#0B4DA2", cursor: "pointer", fontSize: 16, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
           </div>
           <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>Economy / Premium</div>
         </div>
@@ -835,9 +872,9 @@ function SearchForm({ activeCategory, isMobile }) {
 
       <div style={{ textAlign: "center", padding: "12px 0 24px" }}>
         <button onClick={() => setSearched(true)} style={{
-          background: "linear-gradient(135deg, #FF6B35, #F7931E)", color: "#fff", border: "none",
+          background: "linear-gradient(135deg, #0B4DA2, #1768D1)", color: "#fff", border: "none",
           borderRadius: 12, padding: "14px 64px", fontSize: 17, fontWeight: 800, cursor: "pointer",
-          boxShadow: "0 6px 20px rgba(255,107,53,0.4)", transition: "transform .15s",
+          boxShadow: "0 6px 20px rgba(11,77,162,0.32)", transition: "transform .15s",
         }}
           onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
           onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}
@@ -860,41 +897,39 @@ function SearchForm({ activeCategory, isMobile }) {
 export default function WanderlustApp() {
   const [activeCategory, setActiveCategory] = useState("flights");
   const isMobile = useIsMobile();
+  const scrolled = useScrolled();
 
   return (
     <div style={{ fontFamily: "'Segoe UI', sans-serif", background: "#F5F7FA", minHeight: "100vh" }}>
 
       {/* BANNER */}
       <div style={{ background: "linear-gradient(90deg, #1a1a2e, #16213e)", color: "#aaa", fontSize: 12, textAlign: "center", padding: "6px 0", letterSpacing: 0.5 }}>
-        ✨ New: Multi-city bookings now available! &nbsp;|&nbsp; 🎁 Use code <strong style={{ color: "#FFD700" }}>WANDER25</strong> for ₹2,500 off your first booking
+        ✨ New: Multi-city bookings now available! &nbsp;|&nbsp; 🎁 Use code <strong style={{ color: "#9CC4FF" }}>WANDER25</strong> for ₹2,500 off your first booking
       </div>
 
       {/* NAVBAR */}
-      <nav style={{ background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.08)", padding: isMobile ? "0 16px" : "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 62, position: "sticky", top: 0, zIndex: 100 }}>
+      <nav style={{ background: "#fff", boxShadow: scrolled ? "0 4px 18px rgba(4,29,54,0.13)" : "0 1px 0 rgba(0,0,0,0.06)", padding: isMobile ? "0 16px" : "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between", height: scrolled ? 56 : 64, position: "sticky", top: 0, zIndex: 100, transition: "height .25s ease, box-shadow .25s ease" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg, #FF6B35, #F7931E)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🌍</div>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg, #0B4DA2, #1768D1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🌍</div>
           <div>
             <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a2e", lineHeight: 1 }}>Wanderlust</div>
-            <div style={{ fontSize: 10, color: "#FF6B35", fontWeight: 600, letterSpacing: 1 }}>TRAVEL PLANNER</div>
+            <div style={{ fontSize: 10, color: "#0B4DA2", fontWeight: 600, letterSpacing: 1 }}>TRAVEL PLANNER</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 0 : 28 }}>
           {!isMobile && navLinks.map(l => (
             <a key={l} href="#" style={{ textDecoration: "none", color: "#555", fontSize: 13.5, fontWeight: 500 }}
-              onMouseEnter={e => e.target.style.color = "#FF6B35"} onMouseLeave={e => e.target.style.color = "#555"}>{l}</a>
+              onMouseEnter={e => e.target.style.color = "#0B4DA2"} onMouseLeave={e => e.target.style.color = "#555"}>{l}</a>
           ))}
-          <button style={{ background: "linear-gradient(135deg, #FF6B35, #F7931E)", color: "#fff", border: "none", borderRadius: 8, padding: isMobile ? "8px 14px" : "8px 20px", fontWeight: 700, fontSize: isMobile ? 12.5 : 13.5, cursor: "pointer", whiteSpace: "nowrap" }}>{isMobile ? "Login" : "Login / Sign Up"}</button>
+          <button style={{ background: "linear-gradient(135deg, #0B4DA2, #1768D1)", color: "#fff", border: "none", borderRadius: 8, padding: isMobile ? "8px 14px" : "8px 20px", fontWeight: 700, fontSize: isMobile ? 12.5 : 13.5, cursor: "pointer", whiteSpace: "nowrap" }}>{isMobile ? "Login" : "Login / Sign Up"}</button>
         </div>
       </nav>
 
       {/* HERO */}
-      <div style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)", padding: isMobile ? "32px 14px 28px" : "48px 32px 32px", position: "relative", overflow: "visible" }}>
-        <div style={{ position: "absolute", top: -60, right: -60, width: 300, height: 300, borderRadius: "50%", background: "rgba(255,107,53,0.12)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: -80, left: -40, width: 250, height: 250, borderRadius: "50%", background: "rgba(108,63,197,0.15)", pointerEvents: "none" }} />
-
+      <div style={{ backgroundImage: "linear-gradient(180deg, rgba(6,27,58,0.78) 0%, rgba(8,42,92,0.62) 60%, rgba(8,42,92,0.55) 100%), url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80')", backgroundSize: "cover", backgroundPosition: "center", padding: isMobile ? "44px 14px 40px" : "72px 32px 52px", position: "relative", overflow: "visible" }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 13, color: "#FF6B35", fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>YOUR JOURNEY BEGINS HERE</div>
-          <h1 style={{ color: "#fff", fontSize: isMobile ? 24 : 36, fontWeight: 800, margin: 0, lineHeight: 1.2 }}>Explore the World with <span style={{ color: "#FF6B35" }}>Wanderlust</span></h1>
+          <div style={{ fontSize: 13, color: "#8FBEFF", fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>YOUR JOURNEY BEGINS HERE</div>
+          <h1 style={{ color: "#fff", fontSize: isMobile ? 24 : 36, fontWeight: 800, margin: 0, lineHeight: 1.2 }}>Explore the World with <span style={{ color: "#8FBEFF" }}>Wanderlust</span></h1>
           <p style={{ color: "#8899aa", marginTop: 10, fontSize: isMobile ? 13 : 15 }}>Flights · Hotels · Tours · Trains · Buses — all in one place</p>
         </div>
 
@@ -906,8 +941,8 @@ export default function WanderlustApp() {
               <button key={cat.id} onClick={() => setActiveCategory(cat.id)} style={{
                 border: "none", background: "none", padding: "14px 18px", cursor: "pointer",
                 fontSize: 13, fontWeight: activeCategory === cat.id ? 700 : 500,
-                color: activeCategory === cat.id ? "#FF6B35" : "#666",
-                borderBottom: activeCategory === cat.id ? "3px solid #FF6B35" : "3px solid transparent",
+                color: activeCategory === cat.id ? "#0B4DA2" : "#666",
+                borderBottom: activeCategory === cat.id ? "3px solid #0B4DA2" : "3px solid transparent",
                 whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6,
               }}>
                 <span>{cat.icon}</span> {cat.label}
@@ -921,7 +956,7 @@ export default function WanderlustApp() {
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "28px 14px" : "40px 24px" }}>
         {/* SPECIAL FARES */}
-        <div style={{ display: "flex", gap: 12, overflowX: "auto", marginBottom: 48, padding: "4px 0", scrollbarWidth: "none" }}>
+        <Reveal><div style={{ display: "flex", gap: 12, overflowX: "auto", marginBottom: 48, padding: "4px 0", scrollbarWidth: "none" }}>
           {[
             { label: "Regular", sub: "Regular fares", active: true },
             { label: "Student", sub: "Extra discounts" },
@@ -929,21 +964,21 @@ export default function WanderlustApp() {
             { label: "Senior Citizen", sub: "Up to ₹600 off" },
             { label: "Doctor & Nurses", sub: "Up to ₹600 off" },
           ].map(f => (
-            <div key={f.label} style={{ padding: "10px 20px", borderRadius: 10, whiteSpace: "nowrap", border: f.active ? "2px solid #FF6B35" : "2px solid #e0e0e0", background: f.active ? "#FFF3EE" : "#fff", cursor: "pointer" }}>
-              <div style={{ fontWeight: 700, fontSize: 13.5, color: f.active ? "#FF6B35" : "#333" }}>{f.label}</div>
+            <div key={f.label} style={{ padding: "10px 20px", borderRadius: 10, whiteSpace: "nowrap", border: f.active ? "2px solid #0B4DA2" : "2px solid #e0e0e0", background: f.active ? "#EAF1FC" : "#fff", cursor: "pointer" }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5, color: f.active ? "#0B4DA2" : "#333" }}>{f.label}</div>
               <div style={{ fontSize: 11, color: "#888" }}>{f.sub}</div>
             </div>
           ))}
-        </div>
+        </div></Reveal>
 
         {/* OFFERS */}
-        <div style={{ marginBottom: 52 }}>
+        <Reveal><div style={{ marginBottom: 52 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a2e" }}>🎁 Exclusive Offers</h2>
               <p style={{ margin: "4px 0 0", color: "#888", fontSize: 13 }}>Handpicked deals just for you</p>
             </div>
-            <a href="#" style={{ color: "#FF6B35", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>View All →</a>
+            <a href="#" style={{ color: "#0B4DA2", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>View All →</a>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 16 }}>
             {offers.map(o => (
@@ -957,16 +992,16 @@ export default function WanderlustApp() {
               </div>
             ))}
           </div>
-        </div>
+        </div></Reveal>
 
         {/* DESTINATIONS */}
-        <div>
+        <Reveal><div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a2e" }}>🌏 Popular Destinations</h2>
               <p style={{ margin: "4px 0 0", color: "#888", fontSize: 13 }}>Top picks travellers are loving right now</p>
             </div>
-            <a href="#" style={{ color: "#FF6B35", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>Explore All →</a>
+            <a href="#" style={{ color: "#0B4DA2", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>Explore All →</a>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
             {destinations.map(d => (
@@ -979,16 +1014,16 @@ export default function WanderlustApp() {
                     <div style={{ color: "#fff", fontWeight: 800, fontSize: 17 }}>{d.name}</div>
                     <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}>{d.tag}</div>
                   </div>
-                  <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(255,255,255,0.95)", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: "#FF6B35" }}>from {d.price}</div>
+                  <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(255,255,255,0.95)", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: "#0B4DA2" }}>from {d.price}</div>
                 </div>
                 <div style={{ padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ fontSize: 12.5, color: "#666" }}>✈ Flights + 🏨 Hotels</div>
-                  <button style={{ background: "linear-gradient(135deg, #FF6B35, #F7931E)", color: "#fff", border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Book Now</button>
+                  <button style={{ background: "linear-gradient(135deg, #0B4DA2, #1768D1)", color: "#fff", border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Book Now</button>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </div></Reveal>
       </div>
 
       {/* FOOTER */}
@@ -997,7 +1032,7 @@ export default function WanderlustApp() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 32, marginBottom: 36 }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #FF6B35, #F7931E)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🌍</div>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #0B4DA2, #1768D1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🌍</div>
                 <div style={{ color: "#fff", fontWeight: 800, fontSize: 15 }}>Wanderlust</div>
               </div>
               <p style={{ fontSize: 13, lineHeight: 1.7, margin: 0 }}>Your trusted travel partner for unforgettable journeys around the world.</p>
@@ -1011,7 +1046,7 @@ export default function WanderlustApp() {
                 <div style={{ color: "#fff", fontWeight: 700, fontSize: 13.5, marginBottom: 12 }}>{col.title}</div>
                 {col.links.map(l => (
                   <a key={l} href="#" style={{ display: "block", color: "#8899aa", fontSize: 13, textDecoration: "none", marginBottom: 7 }}
-                    onMouseEnter={e => e.target.style.color = "#FF6B35"} onMouseLeave={e => e.target.style.color = "#8899aa"}>{l}</a>
+                    onMouseEnter={e => e.target.style.color = "#0B4DA2"} onMouseLeave={e => e.target.style.color = "#8899aa"}>{l}</a>
                 ))}
               </div>
             ))}
