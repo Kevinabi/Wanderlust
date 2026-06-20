@@ -93,6 +93,25 @@ function useScrollProgress() {
   return p;
 }
 
+// Reveals the sticky bar only when the user scrolls UP while past the hero.
+function useScrollReveal(threshold = 420) {
+  const [show, setShow] = useState(false);
+  const lastY = useRef(0);
+  useEffect(() => {
+    lastY.current = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y <= threshold) setShow(false);
+      else if (y < lastY.current - 2) setShow(true);   // scrolling up
+      else if (y > lastY.current + 2) setShow(false);  // scrolling down
+      lastY.current = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [threshold]);
+  return show;
+}
+
 // Slim category bar that slides in under the header once you scroll past the hero.
 function StickyCategoryBar({ activeCategory, setActiveCategory, visible, isMobile }) {
   return (
@@ -765,7 +784,7 @@ function SearchForm({ activeCategory, isMobile }) {
               <button onClick={swap} style={{
                 width: 36, height: 36, borderRadius: "50%", border: "2px solid #0B4DA2", background: "#fff",
                 cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0, zIndex: 1, margin: "20px -4px 0", transition: "all .2s",
+                flexShrink: 0, zIndex: 1, margin: "0 -4px", alignSelf: "center", transition: "all .2s",
               }}
                 onMouseEnter={e => { e.currentTarget.style.background = "#0B4DA2"; e.currentTarget.style.color = "#fff"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#000"; }}
@@ -894,7 +913,7 @@ function SearchForm({ activeCategory, isMobile }) {
           <button onClick={swap} style={{
             width: 36, height: 36, borderRadius: "50%", border: "2px solid #0B4DA2", background: "#fff",
             cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0, zIndex: 1, margin: "20px -4px 0", transition: "all .2s",
+            flexShrink: 0, zIndex: 1, margin: "0 -4px", alignSelf: "center", transition: "all .2s",
           }}
             onMouseEnter={e => { e.currentTarget.style.background = "#0B4DA2"; e.currentTarget.style.color = "#fff"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#000"; }}
@@ -1018,7 +1037,7 @@ export default function WanderlustApp() {
   const [activeCategory, setActiveCategory] = useState("flights");
   const isMobile = useIsMobile();
   const scrolled = useScrolled();
-  const pastHero = useScrolled(360);
+  const stickyVisible = useScrollReveal(420);
   const progress = useScrollProgress();
 
   return (
@@ -1031,7 +1050,7 @@ export default function WanderlustApp() {
       </div>
 
       {/* Sticky category bar (appears past the hero) */}
-      <StickyCategoryBar activeCategory={activeCategory} setActiveCategory={setActiveCategory} visible={pastHero} isMobile={isMobile} />
+      <StickyCategoryBar activeCategory={activeCategory} setActiveCategory={setActiveCategory} visible={stickyVisible} isMobile={isMobile} />
 
       {/* BANNER */}
       <div style={{ background: "linear-gradient(90deg, #1a1a2e, #16213e)", color: "#aaa", fontSize: 12, textAlign: "center", padding: "6px 0", letterSpacing: 0.5 }}>
@@ -1060,7 +1079,13 @@ export default function WanderlustApp() {
       <div style={{ position: "relative", overflow: "visible", padding: isMobile ? "52px 14px 52px" : "92px 32px 68px" }}>
         {/* Animated cover photo (Ken Burns), clipped to the hero, behind a blue overlay */}
         <div style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0 }}>
-          <div style={{ position: "absolute", inset: "-5%", backgroundImage: "url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80')", backgroundSize: "cover", backgroundPosition: "center", animation: "kenburns 28s ease-in-out infinite", willChange: "transform" }} />
+          <video
+            autoPlay loop muted playsInline preload="auto"
+            poster="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+          >
+            <source src="/hero.mp4" type="video/mp4" />
+          </video>
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(6,27,58,0.78) 0%, rgba(8,42,92,0.62) 55%, rgba(8,42,92,0.62) 100%)" }} />
         </div>
         <div style={{ position: "relative", zIndex: 2 }}>
