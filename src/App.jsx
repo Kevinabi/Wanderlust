@@ -15,6 +15,13 @@ async function apiGet(path) {
   return data;
 }
 
+// Format an IRCTC duration like "14:8" or "12:10" into a tidy "14h 08m".
+function fmtDuration(d) {
+  if (!d) return "—";
+  const m = String(d).match(/^(\d{1,2}):(\d{1,2})$/);
+  return m ? `${parseInt(m[1], 10)}h ${m[2].padStart(2, "0")}m` : String(d);
+}
+
 // ─── RESPONSIVE HOOK ───
 // Returns true on narrow (mobile) viewports. Updates live on resize/rotate.
 function useIsMobile(breakpoint = 640) {
@@ -749,42 +756,34 @@ function SearchForm({ activeCategory, isMobile }) {
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {trainResults.trains.map((t, i) => (
-                      <div key={i} style={{ borderRadius: 14, border: "1.5px solid #eee", padding: "16px 20px", background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
-                          <div>
-                            <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e" }}>{t.trainName}</div>
-                            <div style={{ fontSize: 12, color: "#0B4DA2", fontWeight: 700, marginTop: 2 }}>#{t.trainNumber}</div>
+                      <div key={i} style={{ borderRadius: 14, border: "1.5px solid #eef1f6", padding: isMobile ? "14px 16px" : "16px 20px", background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0,1fr) 76px 104px 76px minmax(116px,0.8fr)", alignItems: "center", gap: isMobile ? 12 : 16 }}>
+                        {/* Train name */}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e", lineHeight: 1.3 }}>{t.trainName}</div>
+                          <div style={{ fontSize: 12, color: "#0B4DA2", fontWeight: 700, marginTop: 2 }}>#{t.trainNumber}</div>
+                        </div>
+                        {/* Departure / duration / arrival (own grid columns on desktop, a row on mobile) */}
+                        <div style={{ display: isMobile ? "flex" : "contents", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                          <div style={{ textAlign: isMobile ? "left" : "center" }}>
+                            <div style={{ fontSize: 19, fontWeight: 900, color: "#1a1a2e" }}>{t.departureTime}</div>
+                            <div style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{t.from}</div>
                           </div>
-                          <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
-                            <div style={{ textAlign: "center" }}>
-                              <div style={{ fontSize: 20, fontWeight: 900, color: "#1a1a2e" }}>{t.departureTime}</div>
-                              <div style={{ fontSize: 11, color: "#999", fontWeight: 600 }}>{t.from}</div>
-                            </div>
-                            <div style={{ textAlign: "center" }}>
-                              <div style={{ fontSize: 11, color: "#bbb", marginBottom: 2 }}>──── {t.duration} ────</div>
-                              <div style={{ fontSize: 10, color: "#bbb" }}>🚆</div>
-                            </div>
-                            <div style={{ textAlign: "center" }}>
-                              <div style={{ fontSize: 20, fontWeight: 900, color: "#1a1a2e" }}>{t.arrivalTime}</div>
-                              <div style={{ fontSize: 11, color: "#999", fontWeight: 600 }}>{t.to}</div>
-                            </div>
+                          <div style={{ textAlign: "center", color: "#9aa3af" }}>
+                            <div style={{ fontSize: 11, fontWeight: 600 }}>{fmtDuration(t.duration)}</div>
+                            <div style={{ fontSize: 12, letterSpacing: 1 }}>──→</div>
                           </div>
-                          <div>
-                            {t.classes?.length > 0 && (
-                              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                                {t.classes.map((cls, ci) => (
-                                  <span key={ci} style={{ background: "#EAF1FC", color: "#0B4DA2", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 8 }}>
-                                    {typeof cls === "object" ? cls.class_type || cls : cls}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                            {Array.isArray(t.runningDays) && t.runningDays.length > 0 && (
-                              <div style={{ marginTop: 6, fontSize: 11, color: "#888" }}>
-                                Runs: {t.runningDays.join(", ")}
-                              </div>
-                            )}
+                          <div style={{ textAlign: isMobile ? "right" : "center" }}>
+                            <div style={{ fontSize: 19, fontWeight: 900, color: "#1a1a2e" }}>{t.arrivalTime}</div>
+                            <div style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{t.to}</div>
                           </div>
+                        </div>
+                        {/* Classes */}
+                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end" }}>
+                          {(t.classes || []).map((cls, ci) => (
+                            <span key={ci} style={{ background: "#EAF1FC", color: "#0B4DA2", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 8 }}>
+                              {typeof cls === "object" ? cls.class_type || JSON.stringify(cls) : cls}
+                            </span>
+                          ))}
                         </div>
                       </div>
                     ))}
