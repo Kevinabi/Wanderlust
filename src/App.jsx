@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 // ─── API CONFIG ───────────────────────────────────────────────────────────────
 // In dev (vite) the API runs on the local Express server at :3001.
@@ -167,74 +167,63 @@ function HeroMotion({ isMobile }) {
   );
 }
 
-// Morphing category nav — MMT-style. Big icon-over-label tiles in a floating
-// hero card that shrink into a compact docked bar. A single fixed element
-// interpolates position/size/glass via rAF (60fps, transform-based, no reflow).
-function MorphCategoryNav({ categories, activeCategory, setActiveCategory, anchorRef, isMobile }) {
-  const barRef = useRef(null);
-  const innerRef = useRef(null);
-  const H0 = isMobile ? 78 : 92;   // expanded (in hero)
-  const H1 = isMobile ? 52 : 58;   // docked (top)
-  useLayoutEffect(() => {
-    let raf = 0;
-    const DOCK_TOP = 56;
-    const RANGE = 160;
-    const apply = () => {
-      raf = 0;
-      const a = anchorRef.current, bar = barRef.current;
-      if (!a || !bar) return;
-      const r = a.getBoundingClientRect();
-      const top = Math.max(DOCK_TOP, r.top);
-      const p = Math.min(1, Math.max(0, 1 - (r.top - DOCK_TOP) / RANGE)); // 0 embedded -> 1 docked
-      const left = r.left * (1 - p);
-      const width = r.width + (window.innerWidth - r.width) * p;
-      bar.style.transform = `translate3d(${left}px, ${top}px, 0)`;
-      bar.style.width = `${width}px`;
-      bar.style.height = `${H0 + (H1 - H0) * p}px`;
-      const rad = 22 * (1 - p);
-      bar.style.borderRadius = `${rad}px ${rad}px 0 0`;
-      bar.style.background = `rgba(255,255,255,${1 - 0.13 * p})`;
-      const blur = 16 * p;
-      bar.style.backdropFilter = blur > 0.5 ? `blur(${blur}px)` : "none";
-      bar.style.WebkitBackdropFilter = bar.style.backdropFilter;
-      bar.style.boxShadow = `0 ${10 * p}px ${30 * p}px rgba(4,29,54,${0.16 * p})`;
-      bar.style.borderBottom = `1px solid rgba(238,241,246,${1 - p})`;
-      bar.style.opacity = "1";
-      if (innerRef.current) innerRef.current.style.transform = `scale(${1 - 0.36 * p})`;
-    };
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(apply); };
-    apply();
+// Category tiles (MMT-style icon-over-label). Rendered big inside the hero and
+// compact in the docked bar via the `compact` flag.
+function CategoryTiles({ categories, activeCategory, setActiveCategory, compact, isMobile }) {
+  const iconSize = compact ? (isMobile ? 18 : 21) : (isMobile ? 22 : 28);
+  const labelSize = compact ? 10.5 : (isMobile ? 11 : 12.5);
+  const tileW = compact ? (isMobile ? 60 : 80) : (isMobile ? 74 : 94);
+  const pad = compact ? "5px 4px 7px" : "8px 4px 12px";
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", gap: isMobile ? 2 : 6, overflowX: "auto", overflowY: "hidden", scrollbarWidth: "none", padding: "0 10px" }}>
+      {categories.map((cat) => {
+        const active = cat.id === activeCategory;
+        return (
+          <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
+            onMouseEnter={e => { if (!active) e.currentTarget.style.color = "#0B4DA2"; }}
+            onMouseLeave={e => { if (!active) e.currentTarget.style.color = "#444"; }}
+            style={{
+              position: "relative", border: "none", background: "none", cursor: "pointer",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end",
+              gap: compact ? 3 : 5, width: tileW, padding: pad, color: active ? "#0B4DA2" : "#444", transition: "color .2s",
+            }}>
+            <span style={{ fontSize: iconSize, lineHeight: 1 }}>{cat.icon}</span>
+            <span style={{ fontSize: labelSize, fontWeight: active ? 700 : 600, textAlign: "center", lineHeight: 1.15, whiteSpace: "normal", maxWidth: tileW - 4 }}>{cat.label}</span>
+            {active && <span style={{ position: "absolute", bottom: 0, left: "18%", right: "18%", height: 3, borderRadius: 3, background: "#0B4DA2" }} />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// True once the in-hero category row reaches the top (header line). No tracking,
+// no mid-scroll floating — the nav stays in flow until it docks.
+function useDocked(ref, offset = 56) {
+  const [docked, setDocked] = useState(false);
+  useEffect(() => {
+    const onScroll = () => { const el = ref.current; if (el) setDocked(el.getBoundingClientRect().top <= offset); };
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
-    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); if (raf) cancelAnimationFrame(raf); };
-  }, [anchorRef, H0, H1]);
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
+  }, [ref, offset]);
+  return docked;
+}
+
+// Compact glass category bar that fades/slides in, pinned at the top, only once
+// the hero tiles reach it. Stays still — it never moves during scrolling.
+function DockedCategoryBar({ categories, activeCategory, setActiveCategory, visible, isMobile }) {
   return (
-    <div ref={barRef} style={{
-      position: "fixed", top: 0, left: 0, zIndex: 90, opacity: 0,
-      height: H0, display: "flex", alignItems: "center", justifyContent: "center",
-      overflowX: "auto", overflowY: "hidden", scrollbarWidth: "none",
-      willChange: "transform, width, height, background, box-shadow",
+    <div style={{
+      position: "fixed", top: 56, left: 0, right: 0, zIndex: 90,
+      background: "rgba(255,255,255,0.9)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+      boxShadow: visible ? "0 6px 22px rgba(4,29,54,0.13)" : "none", borderBottom: "1px solid #eef1f6",
+      transform: visible ? "translateY(0)" : "translateY(-14px)", opacity: visible ? 1 : 0,
+      pointerEvents: visible ? "auto" : "none",
+      transition: "opacity .26s ease, transform .26s ease", willChange: "opacity, transform",
     }}>
-      <div ref={innerRef} style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? 2 : 6, padding: "0 14px", transformOrigin: "center center", whiteSpace: "nowrap" }}>
-        {categories.map((cat) => {
-          const active = cat.id === activeCategory;
-          return (
-            <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
-              onMouseEnter={e => { if (!active) e.currentTarget.style.color = "#0B4DA2"; }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.color = "#444"; }}
-              style={{
-                position: "relative", border: "none", background: "none", cursor: "pointer",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 5,
-                width: isMobile ? 74 : 94, padding: "8px 4px 12px",
-                color: active ? "#0B4DA2" : "#444", transition: "color .2s",
-              }}>
-              <span style={{ fontSize: isMobile ? 22 : 28, lineHeight: 1 }}>{cat.icon}</span>
-              <span style={{ fontSize: isMobile ? 11 : 12.5, fontWeight: active ? 700 : 600, textAlign: "center", lineHeight: 1.15, whiteSpace: "normal", maxWidth: isMobile ? 70 : 92 }}>{cat.label}</span>
-              {active && <span style={{ position: "absolute", bottom: 0, left: "18%", right: "18%", height: 3, borderRadius: 3, background: "#0B4DA2" }} />}
-            </button>
-          );
-        })}
-      </div>
+      <CategoryTiles categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} compact isMobile={isMobile} />
     </div>
   );
 }
@@ -1143,6 +1132,7 @@ export default function WanderlustApp() {
   const isMobile = useIsMobile();
   const scrolled = useScrolled();
   const navAnchor = useRef(null);
+  const docked = useDocked(navAnchor);
   const progress = useScrollProgress();
 
   return (
@@ -1154,8 +1144,8 @@ export default function WanderlustApp() {
         <div style={{ position: "absolute", top: -10, left: `${progress * 100}%`, transform: "translateX(-50%)", fontSize: 15, transition: "left .1s linear" }}>✈️</div>
       </div>
 
-      {/* Morphing category nav: docks to the top on scroll, returns into the hero */}
-      <MorphCategoryNav categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} anchorRef={navAnchor} isMobile={isMobile} />
+      {/* Docked category bar: pins at the top only once the hero tiles reach it */}
+      <DockedCategoryBar categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} visible={docked} isMobile={isMobile} />
 
       {/* BANNER */}
       <div style={{ background: "linear-gradient(90deg, #1a1a2e, #16213e)", color: "#aaa", fontSize: 12, textAlign: "center", padding: "6px 0", letterSpacing: 0.5 }}>
@@ -1203,8 +1193,10 @@ export default function WanderlustApp() {
 
         {/* SEARCH CARD */}
         <div style={{ maxWidth: isMobile ? "100%" : 1120, margin: "0 auto", background: "#fff", borderRadius: 22, boxShadow: "0 24px 70px rgba(4,29,54,0.30)", position: "relative", zIndex: 10 }}>
-          {/* Category nav lives in <MorphCategoryNav>; this anchor reserves its in-card space */}
-          <div ref={navAnchor} aria-hidden style={{ height: isMobile ? 78 : 92 }} />
+          {/* Category tiles live here in the hero; a docked copy pins at the top on scroll */}
+          <div ref={navAnchor} style={{ borderBottom: "1px solid #f0f0f0" }}>
+            <CategoryTiles categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} isMobile={isMobile} />
+          </div>
 
           <SearchForm activeCategory={activeCategory} isMobile={isMobile} />
         </div>
