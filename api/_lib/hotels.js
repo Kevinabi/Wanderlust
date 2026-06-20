@@ -22,7 +22,12 @@ export async function resolveHotelDestination(query) {
   return { entityId, name: pick.entityName || pick.name || query };
 }
 
+const str = (v) => (typeof v === "string" ? v : "");
+const imgUrl = (v) =>
+  typeof v === "string" ? v : v?.url || v?.dynamic || v?.src || null;
+
 // Pure normalizer — maps a Sky-Scrapper searchHotels payload to our UI shape.
+// Every rendered field is coerced to a primitive (never an object).
 export function normalizeHotels(data) {
   const list =
     data?.data?.hotels ||
@@ -30,23 +35,34 @@ export function normalizeHotels(data) {
     data?.hotels ||
     [];
   const hotels = (Array.isArray(list) ? list : []).map((h) => {
-    const reviews = h.reviewsSummary || h.rating || {};
-    const rawPrice = h.rawPrice ?? h.priceRaw ?? h.price?.amount ?? null;
-    const priceStr =
+    // rating can be a number, or an object like { value, description, count, color }
+    const rv = h.reviewsSummary || (typeof h.rating === "object" ? h.rating : {}) || {};
+    const ratingVal =
+      rv.score ?? rv.value ?? (typeof h.rating === "number" ? h.rating : null);
+    const ratingDesc = str(rv.scoreDesc || rv.description || rv.label);
+    const reviewsCount = rv.total ?? rv.count ?? null;
+
+    const rawPrice =
+      h.rawPrice ??
+      h.priceRaw ??
+      (typeof h.price === "object" ? h.price.amount ?? h.price.raw : null) ??
+      null;
+    const price =
       (typeof h.price === "string" && h.price) ||
-      h.price?.formatted ||
+      (typeof h.price === "object" && str(h.price.formatted)) ||
       (rawPrice != null ? `₹${Math.round(rawPrice)}` : "—");
+
     return {
-      id: h.hotelId || h.id || h.name,
-      name: h.name || h.heading || "—",
-      image: h.heroImage || h.image || (Array.isArray(h.images) ? h.images[0] : null),
+      id: h.hotelId || h.id || str(h.name) || Math.random().toString(36).slice(2),
+      name: str(h.name) || str(h.heading) || "—",
+      image: imgUrl(h.heroImage || h.image || (Array.isArray(h.images) ? h.images[0] : null)),
       stars: Number(h.stars || h.starRating || h.class || 0) || 0,
-      rating: reviews.score ?? h.rating ?? null,
-      ratingDesc: reviews.scoreDesc || reviews.label || "",
-      reviewsCount: reviews.total ?? h.reviewsCount ?? null,
-      price: priceStr,
-      priceRaw: rawPrice,
-      location: h.distance || h.relevantPoiDistance || h.area || h.address || "",
+      rating: typeof ratingVal === "number" ? ratingVal : null,
+      ratingDesc,
+      reviewsCount: typeof reviewsCount === "number" ? reviewsCount : null,
+      price,
+      priceRaw: typeof rawPrice === "number" ? rawPrice : null,
+      location: str(h.distance || h.relevantPoiDistance || h.area || h.address),
     };
   });
   hotels.sort((a, b) => (a.priceRaw ?? 1e12) - (b.priceRaw ?? 1e12));

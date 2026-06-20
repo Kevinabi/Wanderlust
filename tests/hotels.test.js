@@ -32,7 +32,7 @@ describe("normalizeHotels", () => {
   it("maps hotels and sorts cheapest first", () => {
     const out = normalizeHotels(sample);
     expect(out.total).toBe(2);
-    expect(out.hotels[0].name).toBe("Budget Stay Inn"); // cheapest first
+    expect(out.hotels[0].name).toBe("Budget Stay Inn");
     expect(out.hotels[0].price).toBe("₹3,200");
     expect(out.hotels[0].stars).toBe(3);
     expect(out.hotels[0].rating).toBe(4.0);
@@ -43,5 +43,25 @@ describe("normalizeHotels", () => {
   it("handles empty / malformed payloads safely", () => {
     expect(normalizeHotels({}).total).toBe(0);
     expect(normalizeHotels({ data: {} }).hotels).toEqual([]);
+  });
+
+  it("flattens an object-shaped rating to primitives (no React #31)", () => {
+    const out = normalizeHotels({
+      data: { hotels: [{
+        hotelId: "x", name: "Obj Rating Hotel", stars: 4,
+        rating: { value: 4.3, description: "Very Good", count: 980, color: "#0a0" },
+        price: { amount: 6000, formatted: "₹6,000" },
+        heroImage: { url: "http://img/x.jpg" },
+        distance: { value: 2 },
+      }] },
+    });
+    const h = out.hotels[0];
+    expect(typeof h.rating).toBe("number");
+    expect(h.rating).toBe(4.3);
+    expect(h.ratingDesc).toBe("Very Good");
+    expect(h.reviewsCount).toBe(980);
+    expect(h.price).toBe("₹6,000");
+    expect(h.image).toBe("http://img/x.jpg");
+    expect(typeof h.location).toBe("string");
   });
 });
