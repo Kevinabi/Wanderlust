@@ -1,0 +1,29 @@
+/* Global responsive base */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden; /* guard against any element forcing horizontal scroll */
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+}
+
+img {
+  max-width: 100%;
+}
+
+/* Hide scrollbars on horizontally-scrolling tab/chip rows (still scrollable) */
+*::-webkit-scrollbar {
+  height: 0;
+}

@@ -15,6 +15,23 @@ async function apiGet(path) {
   return data;
 }
 
+// ─── RESPONSIVE HOOK ───
+// Returns true on narrow (mobile) viewports. Updates live on resize/rotate.
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia(`(max-width:${breakpoint}px)`).matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${breakpoint}px)`);
+    const onChange = () => setIsMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 // ─── DATASETS per category ────────────────────────────────────────────────────
 
 const FLIGHT_CITIES = {
@@ -213,7 +230,7 @@ const navLinks = ["My Trips", "Wishlist", "Offers", "Support"];
 
 // ─── CITY PICKER ─────────────────────────────────────────────────────────────
 
-function CityPicker({ value, onChange, placeholder, exclude, dataset }) {
+function CityPicker({ value, onChange, placeholder, exclude, dataset, isMobile }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const ref = useRef(null);
@@ -254,8 +271,8 @@ function CityPicker({ value, onChange, placeholder, exclude, dataset }) {
 
       {open && (
         <div style={{
-          position: "absolute", top: "calc(100% + 16px)", left: "-24px",
-          width: 400, background: "#fff",
+          position: "absolute", top: "calc(100% + 16px)", left: isMobile ? 0 : "-24px",
+          width: isMobile ? "100%" : 400, minWidth: isMobile ? 0 : 400, maxWidth: "calc(100vw - 32px)", background: "#fff",
           borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
           zIndex: 999, overflow: "hidden", border: "1px solid #f0f0f0",
         }}>
@@ -420,7 +437,7 @@ function TrainLiveStatus() {
             </div>
 
             {/* Route summary */}
-            <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
               {[
                 ["FROM", result.source],
                 ["TO", result.destination],
@@ -526,7 +543,7 @@ function PNRStatus() {
           </div>
 
           {/* Train info */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 14 }}>
             {[
               ["Train", `${result.trainNumber} — ${result.trainName}`],
               ["Date of Journey", result.doj],
@@ -567,7 +584,7 @@ function PNRStatus() {
 
 // ─── SEARCH FORM ──────────────────────────────────────────────────────────────
 
-function SearchForm({ activeCategory }) {
+function SearchForm({ activeCategory, isMobile }) {
   const [tripType, setTripType] = useState("oneway");
   const [from, setFrom] = useState(null);
   const [to, setTo] = useState(null);
@@ -630,10 +647,10 @@ function SearchForm({ activeCategory }) {
 
         {trainTab === "book" && (
           <>
-            <div style={{ display: "flex", alignItems: "flex-start", padding: "20px 24px 8px", gap: 0 }}>
-              <div style={{ flex: 2, minWidth: 160, padding: "12px 20px 12px 0", borderRight: "1px solid #eee" }}>
+            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "flex-start", padding: isMobile ? "16px 16px 4px" : "20px 24px 8px", gap: isMobile ? 4 : 0 }}>
+              <div style={{ flex: 2, minWidth: 160, padding: "12px 20px 12px 0", borderRight: isMobile ? "none" : "1px solid #eee" }}>
                 <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>FROM STATION</div>
-                <CityPicker value={from} onChange={setFrom} placeholder="Select station" exclude={to} dataset={dataset} />
+                <CityPicker value={from} onChange={setFrom} placeholder="Select station" exclude={to} dataset={dataset} isMobile={isMobile} />
               </div>
               <button onClick={swap} style={{
                 width: 36, height: 36, borderRadius: "50%", border: "2px solid #FF6B35", background: "#fff",
@@ -643,11 +660,11 @@ function SearchForm({ activeCategory }) {
                 onMouseEnter={e => { e.currentTarget.style.background = "#FF6B35"; e.currentTarget.style.color = "#fff"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#000"; }}
               >⇌</button>
-              <div style={{ flex: 2, minWidth: 160, padding: "12px 20px", borderRight: "1px solid #eee" }}>
+              <div style={{ flex: 2, minWidth: 160, padding: "12px 20px", borderRight: isMobile ? "none" : "1px solid #eee" }}>
                 <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>TO STATION</div>
-                <CityPicker value={to} onChange={setTo} placeholder="Select station" exclude={from} dataset={dataset} />
+                <CityPicker value={to} onChange={setTo} placeholder="Select station" exclude={from} dataset={dataset} isMobile={isMobile} />
               </div>
-              <div style={{ flex: 1.5, minWidth: 140, padding: "12px 20px", borderRight: "1px solid #eee" }}>
+              <div style={{ flex: 1.5, minWidth: 140, padding: "12px 20px", borderRight: isMobile ? "none" : "1px solid #eee" }}>
                 <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>DEPARTURE</div>
                 <input type="date" value={date} onChange={e => setDate(e.target.value)}
                   style={{ border: "none", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", background: "none", width: "100%" }} />
@@ -761,11 +778,11 @@ function SearchForm({ activeCategory }) {
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "flex-start", padding: "20px 24px 8px", gap: 0 }}>
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "flex-start", padding: isMobile ? "16px 16px 4px" : "20px 24px 8px", gap: isMobile ? 4 : 0 }}>
         {/* FROM */}
-        <div style={{ flex: 2, minWidth: 160, padding: "12px 20px 12px 0", borderRight: "1px solid #eee" }}>
+        <div style={{ flex: 2, minWidth: 160, padding: "12px 20px 12px 0", borderRight: isMobile ? "none" : "1px solid #eee" }}>
           <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>{meta.fromLabel}</div>
-          <CityPicker value={from} onChange={setFrom} placeholder="Select city" exclude={to} dataset={dataset} />
+          <CityPicker value={from} onChange={setFrom} placeholder="Select city" exclude={to} dataset={dataset} isMobile={isMobile} />
           {from && <div style={{ fontSize: 11, color: "#bbb", marginTop: 4 }}>{meta.fromHint}</div>}
           {!from && <div style={{ fontSize: 12, color: "#bbb", marginTop: 4 }}>{meta.fromHint}</div>}
         </div>
@@ -784,15 +801,15 @@ function SearchForm({ activeCategory }) {
 
         {/* TO (not for hotels/homestays single-city) */}
         {!["hotels", "homestays"].includes(activeCategory) && (
-          <div style={{ flex: 2, minWidth: 160, padding: "12px 20px", borderRight: "1px solid #eee" }}>
+          <div style={{ flex: 2, minWidth: 160, padding: "12px 20px", borderRight: isMobile ? "none" : "1px solid #eee" }}>
             <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>{meta.toLabel}</div>
-            <CityPicker value={to} onChange={setTo} placeholder="Select city" exclude={from} dataset={dataset} />
+            <CityPicker value={to} onChange={setTo} placeholder="Select city" exclude={from} dataset={dataset} isMobile={isMobile} />
             {!to && <div style={{ fontSize: 12, color: "#bbb", marginTop: 4 }}>{meta.toHint}</div>}
           </div>
         )}
 
         {/* DATE */}
-        <div style={{ flex: 1.5, minWidth: 140, padding: "12px 20px", borderRight: "1px solid #eee" }}>
+        <div style={{ flex: 1.5, minWidth: 140, padding: "12px 20px", borderRight: isMobile ? "none" : "1px solid #eee" }}>
           <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>
             {["hotels", "homestays"].includes(activeCategory) ? "CHECK-IN" : "DEPARTURE"}
           </div>
@@ -842,6 +859,7 @@ function SearchForm({ activeCategory }) {
 
 export default function WanderlustApp() {
   const [activeCategory, setActiveCategory] = useState("flights");
+  const isMobile = useIsMobile();
 
   return (
     <div style={{ fontFamily: "'Segoe UI', sans-serif", background: "#F5F7FA", minHeight: "100vh" }}>
@@ -852,7 +870,7 @@ export default function WanderlustApp() {
       </div>
 
       {/* NAVBAR */}
-      <nav style={{ background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.08)", padding: "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 62, position: "sticky", top: 0, zIndex: 100 }}>
+      <nav style={{ background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.08)", padding: isMobile ? "0 16px" : "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 62, position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg, #FF6B35, #F7931E)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🌍</div>
           <div>
@@ -860,24 +878,24 @@ export default function WanderlustApp() {
             <div style={{ fontSize: 10, color: "#FF6B35", fontWeight: 600, letterSpacing: 1 }}>TRAVEL PLANNER</div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
-          {navLinks.map(l => (
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 0 : 28 }}>
+          {!isMobile && navLinks.map(l => (
             <a key={l} href="#" style={{ textDecoration: "none", color: "#555", fontSize: 13.5, fontWeight: 500 }}
               onMouseEnter={e => e.target.style.color = "#FF6B35"} onMouseLeave={e => e.target.style.color = "#555"}>{l}</a>
           ))}
-          <button style={{ background: "linear-gradient(135deg, #FF6B35, #F7931E)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>Login / Sign Up</button>
+          <button style={{ background: "linear-gradient(135deg, #FF6B35, #F7931E)", color: "#fff", border: "none", borderRadius: 8, padding: isMobile ? "8px 14px" : "8px 20px", fontWeight: 700, fontSize: isMobile ? 12.5 : 13.5, cursor: "pointer", whiteSpace: "nowrap" }}>{isMobile ? "Login" : "Login / Sign Up"}</button>
         </div>
       </nav>
 
       {/* HERO */}
-      <div style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)", padding: "48px 32px 32px", position: "relative", overflow: "visible" }}>
+      <div style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)", padding: isMobile ? "32px 14px 28px" : "48px 32px 32px", position: "relative", overflow: "visible" }}>
         <div style={{ position: "absolute", top: -60, right: -60, width: 300, height: 300, borderRadius: "50%", background: "rgba(255,107,53,0.12)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -80, left: -40, width: 250, height: 250, borderRadius: "50%", background: "rgba(108,63,197,0.15)", pointerEvents: "none" }} />
 
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontSize: 13, color: "#FF6B35", fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>YOUR JOURNEY BEGINS HERE</div>
-          <h1 style={{ color: "#fff", fontSize: 36, fontWeight: 800, margin: 0 }}>Explore the World with <span style={{ color: "#FF6B35" }}>Wanderlust</span></h1>
-          <p style={{ color: "#8899aa", marginTop: 10, fontSize: 15 }}>Flights · Hotels · Tours · Trains · Buses — all in one place</p>
+          <h1 style={{ color: "#fff", fontSize: isMobile ? 24 : 36, fontWeight: 800, margin: 0, lineHeight: 1.2 }}>Explore the World with <span style={{ color: "#FF6B35" }}>Wanderlust</span></h1>
+          <p style={{ color: "#8899aa", marginTop: 10, fontSize: isMobile ? 13 : 15 }}>Flights · Hotels · Tours · Trains · Buses — all in one place</p>
         </div>
 
         {/* SEARCH CARD */}
@@ -897,11 +915,11 @@ export default function WanderlustApp() {
             ))}
           </div>
 
-          <SearchForm activeCategory={activeCategory} />
+          <SearchForm activeCategory={activeCategory} isMobile={isMobile} />
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 24px" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "28px 14px" : "40px 24px" }}>
         {/* SPECIAL FARES */}
         <div style={{ display: "flex", gap: 12, overflowX: "auto", marginBottom: 48, padding: "4px 0", scrollbarWidth: "none" }}>
           {[
