@@ -800,6 +800,11 @@ function SearchForm({ activeCategory, isMobile }) {
   const [flightLoading, setFlightLoading] = useState(false);
   const [flightError, setFlightError] = useState(null);
 
+  // Hotel search results
+  const [hotelResults, setHotelResults] = useState(null);
+  const [hotelLoading, setHotelLoading] = useState(false);
+  const [hotelError, setHotelError] = useState(null);
+
   const meta = CATEGORY_META[activeCategory] || CATEGORY_META.flights;
   const dataset = DATASETS[activeCategory] || FLIGHT_CITIES;
 
@@ -808,6 +813,7 @@ function SearchForm({ activeCategory, isMobile }) {
     setFrom(null); setTo(null); setSearched(false);
     setTrainResults(null); setTrainError(null);
     setFlightResults(null); setFlightError(null);
+    setHotelResults(null); setHotelError(null);
   }, [activeCategory]);
 
   const swap = () => { setFrom(to); setTo(from); };
@@ -839,6 +845,21 @@ function SearchForm({ activeCategory, isMobile }) {
       setFlightLoading(false);
     }
   }, [from, to, date]);
+
+  const searchHotels = useCallback(async () => {
+    if (!from) return;
+    setHotelLoading(true); setHotelError(null); setHotelResults(null);
+    try {
+      const data = await apiGet(
+        `/hotels-search?city=${encodeURIComponent(from.name)}&cityCode=${from.code}&checkin=${date}&guests=${travellers}`
+      );
+      setHotelResults(data);
+    } catch (e) {
+      setHotelError(e.message);
+    } finally {
+      setHotelLoading(false);
+    }
+  }, [from, date, travellers]);
 
   // Train-specific layout
   if (activeCategory === "trains") {
@@ -1048,20 +1069,23 @@ function SearchForm({ activeCategory, isMobile }) {
             if (activeCategory === "flights") {
               if (!from || !to) { setFlightError("Please select both From and To cities."); return; }
               searchFlights();
+            } else if (activeCategory === "hotels") {
+              if (!from) { setHotelError("Please select a city / destination."); return; }
+              searchHotels();
             } else setSearched(true);
           }}
-          disabled={activeCategory === "flights" && flightLoading}
+          disabled={(activeCategory === "flights" && flightLoading) || (activeCategory === "hotels" && hotelLoading)}
           style={{
             background: "linear-gradient(135deg, #0B4DA2, #1768D1)",
             color: "#fff", border: "none",
             borderRadius: 12, padding: "16px 78px", fontSize: 18, fontWeight: 800,
-            cursor: activeCategory === "flights" && flightLoading ? "default" : "pointer",
-            opacity: activeCategory === "flights" && flightLoading ? 0.85 : 1,
+            cursor: (activeCategory === "flights" && flightLoading) || (activeCategory === "hotels" && hotelLoading) ? "default" : "pointer",
+            opacity: (activeCategory === "flights" && flightLoading) || (activeCategory === "hotels" && hotelLoading) ? 0.85 : 1,
             boxShadow: "0 6px 20px rgba(11,77,162,0.32)", transition: "transform .15s",
           }}
           onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
           onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}
-        >{activeCategory === "flights" ? (flightLoading ? "⏳ Searching Flights…" : "✈️ SEARCH FLIGHTS") : `${meta.icon} SEARCH ${activeCategory.toUpperCase()}`}</button>
+        >{activeCategory === "flights" ? (flightLoading ? "⏳ Searching Flights…" : "✈️ SEARCH FLIGHTS") : activeCategory === "hotels" ? (hotelLoading ? "⏳ Searching Hotels…" : "🏨 SEARCH HOTELS") : `${meta.icon} SEARCH ${activeCategory.toUpperCase()}`}</button>
         {searched && from && (
           <div style={{ marginTop: 10, color: "#00897B", fontWeight: 600, fontSize: 13 }}>
             ✓ Searching {from.name}{to ? ` → ${to.name}` : ""} for {travellers} {["hotels","homestays"].includes(activeCategory) ? "guest" : "traveller"}{travellers > 1 ? "s" : ""} on {new Date(date).toDateString()}
@@ -1072,6 +1096,51 @@ function SearchForm({ activeCategory, isMobile }) {
         )}
       </div>
 
+      {activeCategory === "hotels" && (hotelError || hotelResults) && (
+        <div style={{ padding: "0 24px 24px" }}>
+          {hotelError && (
+            <div style={{ background: "#FFF0F0", borderRadius: 12, border: "1.5px solid #E91E63", padding: "14px 18px", color: "#c62828", fontWeight: 600 }}>❌ {hotelError}</div>
+          )}
+          {hotelResults && (
+            <>
+              <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e", margin: "0 0 14px" }}>
+                {hotelResults.total} hotel{hotelResults.total !== 1 ? "s" : ""} in {from?.name} · check-in {new Date(date + "T00:00:00").toDateString()}
+              </div>
+              {hotelResults.hotels.length === 0 ? (
+                <div style={{ color: "#888", fontSize: 14 }}>No hotels found for this destination/date.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {hotelResults.hotels.map((h) => (
+                    <div key={h.id} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "170px 1fr auto", border: "1.5px solid #eef1f6", borderRadius: 14, overflow: "hidden", background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                      <div style={{ height: isMobile ? 160 : "100%", minHeight: 120, background: "#eef1f6" }}>
+                        {h.image
+                          ? <img src={h.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 30 }}>🏨</div>}
+                      </div>
+                      <div style={{ padding: isMobile ? "12px 16px 6px" : "16px 18px", minWidth: 0 }}>
+                        <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", lineHeight: 1.3 }}>{h.name}</div>
+                        {h.stars > 0 && <div style={{ color: "#f5a623", fontSize: 13, marginTop: 3 }}>{"★".repeat(h.stars)}</div>}
+                        {h.location && <div style={{ fontSize: 12.5, color: "#888", marginTop: 5 }}>📍 {h.location}</div>}
+                        {h.rating != null && (
+                          <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 7 }}>
+                            <span style={{ background: "#0B4DA2", color: "#fff", fontSize: 12, fontWeight: 800, padding: "2px 8px", borderRadius: 6 }}>{h.rating}</span>
+                            <span style={{ fontSize: 12, color: "#555", fontWeight: 600 }}>{h.ratingDesc}{h.reviewsCount ? ` · ${h.reviewsCount} reviews` : ""}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ padding: isMobile ? "0 16px 14px" : "16px 20px", display: "flex", flexDirection: "column", alignItems: isMobile ? "flex-start" : "flex-end", justifyContent: "center", gap: 4 }}>
+                        <div style={{ fontSize: 20, fontWeight: 900, color: "#0B4DA2" }}>{h.price}</div>
+                        <div style={{ fontSize: 11, color: "#999", marginBottom: 4 }}>per night</div>
+                        <button style={{ background: "linear-gradient(135deg, #0B4DA2, #1768D1)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Book</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
       {activeCategory === "flights" && (flightError || flightResults) && (
         <div style={{ padding: "0 24px 24px" }}>
           {flightError && (

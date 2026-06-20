@@ -23,6 +23,7 @@ import {
   IRCTC_HOST,
 } from "./api/_lib/irctc.js";
 import { resolveAirport, skyFetch, normalizeFlights } from "./api/_lib/flights.js";
+import { resolveHotelDestination, normalizeHotels, hotelSearchPath } from "./api/_lib/hotels.js";
 
 const app = express();
 app.use(cors());
@@ -116,6 +117,23 @@ app.get("/api/flights-search", async (req, res) => {
     res.json(normalizeFlights(data));
   } catch (err) {
     res.status(err.code === "NO_KEY" ? 503 : 500).json({ error: "Failed to fetch flights. " + err.message });
+  }
+});
+
+app.get("/api/hotels-search", async (req, res) => {
+  const { city, cityCode, checkin, checkout, guests } = req.query;
+  const query = city || cityCode;
+  if (!query || !checkin)
+    return res.status(400).json({ error: "city and checkin date are required." });
+  try {
+    const dest = await resolveHotelDestination(query);
+    if (!dest) return res.status(404).json({ error: "Couldn't find that destination." });
+    const { status, data } = await skyFetch(hotelSearchPath({ entityId: dest.entityId, checkin, checkout, guests }));
+    if (status !== 200 || !data?.data)
+      return res.status(status || 502).json({ error: data?.message || "Hotel search failed or no results." });
+    res.json(normalizeHotels(data));
+  } catch (err) {
+    res.status(err.code === "NO_KEY" ? 503 : 500).json({ error: "Failed to fetch hotels. " + err.message });
   }
 });
 
