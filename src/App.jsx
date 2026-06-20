@@ -1028,13 +1028,19 @@ function SearchForm({ activeCategory, isMobile }) {
 
       <div style={{ textAlign: "center", padding: "12px 0 24px" }}>
         <button
-          onClick={() => { if (activeCategory === "flights") searchFlights(); else setSearched(true); }}
-          disabled={activeCategory === "flights" && (!from || !to || flightLoading)}
+          onClick={() => {
+            if (activeCategory === "flights") {
+              if (!from || !to) { setFlightError("Please select both From and To cities."); return; }
+              searchFlights();
+            } else setSearched(true);
+          }}
+          disabled={activeCategory === "flights" && flightLoading}
           style={{
-            background: activeCategory === "flights" && (!from || !to || flightLoading) ? "#b9c4d6" : "linear-gradient(135deg, #0B4DA2, #1768D1)",
+            background: "linear-gradient(135deg, #0B4DA2, #1768D1)",
             color: "#fff", border: "none",
             borderRadius: 12, padding: "16px 78px", fontSize: 18, fontWeight: 800,
-            cursor: activeCategory === "flights" && (!from || !to || flightLoading) ? "default" : "pointer",
+            cursor: activeCategory === "flights" && flightLoading ? "default" : "pointer",
+            opacity: activeCategory === "flights" && flightLoading ? 0.85 : 1,
             boxShadow: "0 6px 20px rgba(11,77,162,0.32)", transition: "transform .15s",
           }}
           onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
