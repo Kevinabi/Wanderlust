@@ -39,3 +39,12 @@ img {
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* Premium typography */
+body, #root { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+h1, h2, h3 { font-family: 'Poppins', 'Inter', sans-serif; letter-spacing: -0.01em; }
+
+/* Hero motion-graphic keyframes (GPU-friendly transforms) */
+@keyframes heroFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+@keyframes drawPath { to { stroke-dashoffset: 0; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }

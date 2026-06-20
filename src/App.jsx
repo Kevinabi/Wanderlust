@@ -93,23 +93,70 @@ function useScrollProgress() {
   return p;
 }
 
-// Reveals the sticky bar only when the user scrolls UP while past the hero.
-function useScrollReveal(threshold = 420) {
-  const [show, setShow] = useState(false);
-  const lastY = useRef(0);
+// True once a sentinel placed just below the hero scrolls under the header,
+// false again when the hero re-enters — drives the smart sticky category bar.
+function usePassedHero(ref, offset = 56) {
+  const [passed, setPassed] = useState(false);
   useEffect(() => {
-    lastY.current = window.scrollY;
     const onScroll = () => {
-      const y = window.scrollY;
-      if (y <= threshold) setShow(false);
-      else if (y < lastY.current - 2) setShow(true);   // scrolling up
-      else if (y > lastY.current + 2) setShow(false);  // scrolling down
-      lastY.current = y;
+      const el = ref.current;
+      if (el) setPassed(el.getBoundingClientRect().top <= offset);
     };
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [threshold]);
-  return show;
+    window.addEventListener("resize", onScroll);
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
+  }, [ref, offset]);
+  return passed;
+}
+
+// Hero motion graphics: parallax clouds, a self-drawing flight path, and an
+// airplane that drifts with scroll. Pure SVG/CSS + direct-DOM transforms
+// (no React re-renders on scroll) for performance.
+function Cloud({ w }) {
+  return (
+    <svg width={w} viewBox="0 0 100 56" fill="#ffffff" aria-hidden>
+      <path d="M25 50h52a14 14 0 0 0 1.5-27.8A19 19 0 0 0 42 15.5 13 13 0 0 0 25 50z" />
+    </svg>
+  );
+}
+function HeroMotion({ isMobile }) {
+  const planeRef = useRef(null);
+  const cloudA = useRef(null);
+  const cloudB = useRef(null);
+  useEffect(() => {
+    let raf = 0;
+    const apply = () => {
+      const y = window.scrollY;
+      if (planeRef.current) planeRef.current.style.transform = `translate3d(${y * 0.06}px, ${y * 0.32}px, 0)`;
+      if (cloudA.current) cloudA.current.style.transform = `translate3d(${-y * 0.12}px, 0, 0)`;
+      if (cloudB.current) cloudB.current.style.transform = `translate3d(${y * 0.16}px, 0, 0)`;
+      raf = 0;
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(apply); };
+    apply();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, []);
+  return (
+    <div aria-hidden style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none", overflow: "hidden" }}>
+      {/* self-drawing flight path */}
+      <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} viewBox="0 0 1000 460" preserveAspectRatio="xMidYMid slice" aria-hidden>
+        <path d="M-40 430 C 240 380, 430 210, 1040 70" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="2" strokeDasharray="1400" strokeDashoffset="1400" vectorEffect="non-scaling-stroke" style={{ animation: "drawPath 3s ease forwards .4s" }} />
+      </svg>
+      {/* parallax clouds */}
+      <div ref={cloudA} style={{ position: "absolute", top: "16%", left: "5%", opacity: 0.5, willChange: "transform" }}><Cloud w={isMobile ? 64 : 120} /></div>
+      <div ref={cloudB} style={{ position: "absolute", top: "30%", right: "7%", opacity: 0.32, willChange: "transform" }}><Cloud w={isMobile ? 46 : 92} /></div>
+      {/* airplane: scroll-parallax (outer) + gentle float (inner) */}
+      <div ref={planeRef} style={{ position: "absolute", top: isMobile ? "9%" : "16%", right: isMobile ? "9%" : "15%", willChange: "transform" }}>
+        <div style={{ animation: "heroFloat 5s ease-in-out infinite" }}>
+          <svg width={isMobile ? 34 : 56} height={isMobile ? 34 : 56} viewBox="0 0 24 24" fill="#ffffff" style={{ filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.35))" }} aria-hidden>
+            <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5L21 16z" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Slim category bar that slides in under the header once you scroll past the hero.
@@ -117,9 +164,12 @@ function StickyCategoryBar({ activeCategory, setActiveCategory, visible, isMobil
   return (
     <div style={{
       position: "fixed", top: 56, left: 0, right: 0, zIndex: 96,
-      background: "#fff", boxShadow: "0 4px 16px rgba(4,29,54,0.12)",
+      background: "rgba(255,255,255,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+      boxShadow: "0 6px 24px rgba(4,29,54,0.14)", borderBottom: "1px solid rgba(255,255,255,0.55)",
       transform: visible ? "translateY(0)" : "translateY(-130%)",
-      transition: "transform .32s cubic-bezier(.2,.8,.2,1)",
+      opacity: visible ? 1 : 0,
+      transition: "transform .42s cubic-bezier(.2,.8,.2,1), opacity .42s ease",
+      willChange: "transform, opacity",
       display: "flex", gap: 4, padding: isMobile ? "7px 10px" : "8px 16px",
       overflowX: "auto", scrollbarWidth: "none", justifyContent: isMobile ? "flex-start" : "center",
     }}>
@@ -1037,11 +1087,12 @@ export default function WanderlustApp() {
   const [activeCategory, setActiveCategory] = useState("flights");
   const isMobile = useIsMobile();
   const scrolled = useScrolled();
-  const stickyVisible = useScrollReveal(420);
+  const heroSentinel = useRef(null);
+  const stickyVisible = usePassedHero(heroSentinel);
   const progress = useScrollProgress();
 
   return (
-    <div style={{ fontFamily: "'Segoe UI', sans-serif", background: "#F5F7FA", minHeight: "100vh" }}>
+    <div style={{ fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif", background: "#F5F7FA", minHeight: "100vh" }}>
 
       {/* Scroll-progress flight mover */}
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 3, background: "rgba(11,77,162,0.12)", zIndex: 300, pointerEvents: "none" }}>
@@ -1088,6 +1139,7 @@ export default function WanderlustApp() {
           </video>
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(6,27,58,0.78) 0%, rgba(8,42,92,0.62) 55%, rgba(8,42,92,0.62) 100%)" }} />
         </div>
+        <HeroMotion isMobile={isMobile} />
         <div style={{ position: "relative", zIndex: 2 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontSize: 13, color: "#8FBEFF", fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>YOUR JOURNEY BEGINS HERE</div>
@@ -1100,12 +1152,15 @@ export default function WanderlustApp() {
           {/* CATEGORY TABS */}
           <div style={{ display: "flex", overflowX: "auto", borderBottom: "1px solid #f0f0f0", padding: "0 16px", scrollbarWidth: "none" }}>
             {categories.map(cat => (
-              <button key={cat.id} onClick={() => setActiveCategory(cat.id)} style={{
+              <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
+                onMouseEnter={e => { e.currentTarget.style.color = "#0B4DA2"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={e => { if (activeCategory !== cat.id) e.currentTarget.style.color = "#666"; e.currentTarget.style.transform = "none"; }}
+                style={{
                 border: "none", background: "none", padding: isMobile ? "14px 16px" : "17px 26px", cursor: "pointer",
                 fontSize: isMobile ? 13 : 14.5, fontWeight: activeCategory === cat.id ? 700 : 500,
                 color: activeCategory === cat.id ? "#0B4DA2" : "#666",
                 borderBottom: activeCategory === cat.id ? "3px solid #0B4DA2" : "3px solid transparent",
-                whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6,
+                whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, transition: "color .2s, transform .2s",
               }}>
                 <span>{cat.icon}</span> {cat.label}
               </button>
@@ -1116,6 +1171,8 @@ export default function WanderlustApp() {
         </div>
         </div>
       </div>
+
+      <div ref={heroSentinel} aria-hidden style={{ height: 1 }} />
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "28px 14px" : "40px 24px" }}>
         {/* SPECIAL FARES */}
