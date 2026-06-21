@@ -170,10 +170,14 @@ function HeroMotion({ isMobile }) {
 // Category tiles (MMT-style icon-over-label). Rendered big inside the hero and
 // compact in the docked bar via the `compact` flag.
 function CategoryTiles({ categories, activeCategory, setActiveCategory, compact, isMobile }) {
-  const iconSize = compact ? (isMobile ? 18 : 21) : (isMobile ? 22 : 28);
-  const labelSize = compact ? 10.5 : (isMobile ? 11 : 12.5);
-  const tileW = compact ? (isMobile ? 60 : 80) : (isMobile ? 74 : 94);
-  const pad = compact ? "5px 4px 7px" : "8px 4px 12px";
+  // Icon size, label size, tile width and gap are IDENTICAL in both the hero and
+  // docked states so the icons line up column-for-column and appear to morph in
+  // place rather than jump. `compact` only trims vertical height for the slim
+  // pinned bar.
+  const iconSize = isMobile ? 22 : 28;
+  const labelSize = isMobile ? 11 : 12.5;
+  const tileW = isMobile ? 74 : 94;
+  const pad = compact ? "6px 4px 8px" : "8px 4px 12px";
   return (
     <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", gap: isMobile ? 2 : 6, overflowX: "auto", overflowY: "hidden", scrollbarWidth: "none", padding: "0 10px" }}>
       {categories.map((cat) => {
@@ -219,11 +223,16 @@ function DockedCategoryBar({ categories, activeCategory, setActiveCategory, visi
       position: "fixed", top: 0, left: 0, right: 0, zIndex: 110,
       background: "rgba(255,255,255,0.95)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
       boxShadow: visible ? "0 6px 22px rgba(4,29,54,0.13)" : "none", borderBottom: "1px solid #eef1f6",
-      transform: visible ? "translateY(0)" : "translateY(-14px)", opacity: visible ? 1 : 0,
+      transform: visible ? "translateY(0)" : "translateY(-100%)", opacity: visible ? 1 : 0,
       pointerEvents: visible ? "auto" : "none",
-      transition: "opacity .26s ease, transform .26s ease", willChange: "opacity, transform",
+      transition: "opacity .28s ease, transform .32s cubic-bezier(0.22, 1, 0.36, 1)", willChange: "opacity, transform",
     }}>
-      <CategoryTiles categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} compact isMobile={isMobile} />
+      {/* Same max-width as the hero search card (1120) so the tile columns sit at
+          the exact same horizontal positions and the bar reads as the hero bar
+          settling at the top rather than a new element popping in. */}
+      <div style={{ maxWidth: isMobile ? "100%" : 1120, margin: "0 auto" }}>
+        <CategoryTiles categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} compact isMobile={isMobile} />
+      </div>
     </div>
   );
 }
@@ -808,13 +817,15 @@ function SearchForm({ activeCategory, isMobile }) {
   const meta = CATEGORY_META[activeCategory] || CATEGORY_META.flights;
   const dataset = DATASETS[activeCategory] || FLIGHT_CITIES;
 
-  // Reset selections when category changes
-  useEffect(() => {
+  // Reset selections when category changes (done during render, not in an effect)
+  const [prevCategory, setPrevCategory] = useState(activeCategory);
+  if (activeCategory !== prevCategory) {
+    setPrevCategory(activeCategory);
     setFrom(null); setTo(null); setSearched(false);
     setTrainResults(null); setTrainError(null);
     setFlightResults(null); setFlightError(null);
     setHotelResults(null); setHotelError(null);
-  }, [activeCategory]);
+  }
 
   const swap = () => { setFrom(to); setTo(from); };
 
@@ -1382,4 +1393,3 @@ export default function WanderlustApp() {
     </div>
   );
 }
-
