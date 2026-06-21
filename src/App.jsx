@@ -176,27 +176,86 @@ function CategoryTiles({ categories, activeCategory, setActiveCategory, compact,
   // pinned bar.
   const iconSize = isMobile ? 22 : 28;
   const labelSize = isMobile ? 11 : 12.5;
-  const tileW = isMobile ? 74 : 94;
+  const tileW = isMobile ? 82 : 96;
   const pad = compact ? "6px 4px 8px" : "8px 4px 12px";
+  // Reserve a consistent two-line height for every label so single- and
+  // double-line tiles stay the same height and their icons share one baseline
+  // (prevents the icon/label crowding seen on wrapped labels like "Tours & Activities").
+  const labelH = Math.round(labelSize * 1.2 * 2);
+
+  // Track horizontal scroll position so the edge fades + swipe hint only show
+  // when there is actually more content to slide to in that direction.
+  const scrollRef = useRef(null);
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(false);
+
+  const updateEdges = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const overflow = el.scrollWidth - el.clientWidth;
+    setAtStart(el.scrollLeft <= 2);
+    setAtEnd(overflow <= 4 || el.scrollLeft >= overflow - 2);
+  }, []);
+
+  useEffect(() => {
+    updateEdges();
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateEdges, { passive: true });
+    window.addEventListener("resize", updateEdges);
+    return () => { el.removeEventListener("scroll", updateEdges); window.removeEventListener("resize", updateEdges); };
+  }, [updateEdges, categories, isMobile, compact]);
+
+  // On the glassy docked bar the fade should blend into the translucent white;
+  // inside the white search card a solid-white fade reads cleanest.
+  const fadeColor = compact ? "rgba(255,255,255,0.96)" : "#ffffff";
+
   return (
-    <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", gap: isMobile ? 2 : 6, overflowX: "auto", overflowY: "hidden", scrollbarWidth: "none", padding: "0 10px" }}>
-      {categories.map((cat) => {
-        const active = cat.id === activeCategory;
-        return (
-          <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
-            onMouseEnter={e => { if (!active) e.currentTarget.style.color = "#0B4DA2"; }}
-            onMouseLeave={e => { if (!active) e.currentTarget.style.color = "#444"; }}
-            style={{
-              position: "relative", border: "none", background: "none", cursor: "pointer",
-              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end",
-              gap: compact ? 3 : 5, width: tileW, padding: pad, color: active ? "#0B4DA2" : "#444", transition: "color .2s",
-            }}>
-            <span style={{ fontSize: iconSize, lineHeight: 1 }}>{cat.icon}</span>
-            <span style={{ fontSize: labelSize, fontWeight: active ? 700 : 600, textAlign: "center", lineHeight: 1.15, whiteSpace: "normal", maxWidth: tileW - 4 }}>{cat.label}</span>
-            {active && <span style={{ position: "absolute", bottom: 0, left: "18%", right: "18%", height: 3, borderRadius: 3, background: "#0B4DA2" }} />}
-          </button>
-        );
-      })}
+    <div style={{ position: "relative" }}>
+      <div ref={scrollRef} style={{
+        display: "flex", alignItems: "flex-start",
+        justifyContent: isMobile ? "flex-start" : "center",
+        gap: isMobile ? 12 : 8, overflowX: "auto", overflowY: "hidden",
+        scrollbarWidth: "none", padding: isMobile ? "0 14px" : "0 10px",
+        scrollSnapType: isMobile ? "x proximity" : "none",
+      }}>
+        {categories.map((cat) => {
+          const active = cat.id === activeCategory;
+          return (
+            <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.color = "#0B4DA2"; }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.color = "#2b3240"; }}
+              style={{
+                position: "relative", border: "none", background: "none", cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start",
+                gap: compact ? 3 : 5, width: tileW, flexShrink: 0, padding: pad,
+                color: active ? "#0B4DA2" : "#2b3240", transition: "color .2s",
+                scrollSnapAlign: isMobile ? "start" : "none",
+              }}>
+              <span style={{ fontSize: iconSize, lineHeight: 1, height: iconSize, display: "flex", alignItems: "center", justifyContent: "center" }}>{cat.icon}</span>
+              <span style={{ fontSize: labelSize, fontWeight: active ? 700 : 600, textAlign: "center", lineHeight: 1.2, whiteSpace: "normal", width: "100%", maxWidth: tileW - 2, height: labelH, display: "flex", alignItems: "flex-start", justifyContent: "center" }}>{cat.label}</span>
+              {active && <span style={{ position: "absolute", bottom: 0, left: "18%", right: "18%", height: 3, borderRadius: 3, background: "#0B4DA2" }} />}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Left fade — appears once the user has scrolled away from the start */}
+      <div aria-hidden style={{
+        position: "absolute", top: 0, bottom: 0, left: 0, width: 32, pointerEvents: "none",
+        background: `linear-gradient(90deg, ${fadeColor} 25%, rgba(255,255,255,0))`,
+        opacity: atStart ? 0 : 1, transition: "opacity .2s",
+      }} />
+
+      {/* Right fade + animated chevron — the "you can slide for more" cue */}
+      <div aria-hidden style={{
+        position: "absolute", top: 0, bottom: 0, right: 0, width: 46, pointerEvents: "none",
+        display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 4,
+        background: `linear-gradient(270deg, ${fadeColor} 25%, rgba(255,255,255,0))`,
+        opacity: atEnd ? 0 : 1, transition: "opacity .2s",
+      }}>
+        <span style={{ color: "#0B4DA2", fontSize: 20, fontWeight: 900, lineHeight: 1, animation: "hintNudge 1.3s ease-in-out infinite" }}>›</span>
+      </div>
     </div>
   );
 }
@@ -465,12 +524,12 @@ function CityPicker({ value, onChange, placeholder, exclude, dataset, isMobile }
         {value ? (
           <>
             <div style={{ fontSize: 30, fontWeight: 900, color: "#1a1a2e", lineHeight: 1 }}>{value.name}</div>
-            <div style={{ fontSize: 11, color: "#999", marginTop: 3 }}>
+            <div style={{ fontSize: 11.5, color: "#6b7280", marginTop: 3, fontWeight: 600 }}>
               {value.code} · {value.sub.length > 30 ? value.sub.slice(0, 30) + "…" : value.sub}
             </div>
           </>
         ) : (
-          <div style={{ fontSize: 18, color: "#bbb", fontWeight: 600, paddingTop: 4 }}>{placeholder}</div>
+          <div style={{ fontSize: 18, color: "#6b7280", fontWeight: 700, paddingTop: 4 }}>{placeholder}</div>
         )}
       </div>
 
@@ -495,14 +554,14 @@ function CityPicker({ value, onChange, placeholder, exclude, dataset, isMobile }
             ) : (
               Object.entries(dataset).map(([group, cities]) => (
                 <div key={group}>
-                  <div style={{ padding: "10px 16px 6px", fontSize: 11, fontWeight: 800, color: "#999", letterSpacing: 0.8, textTransform: "uppercase", background: "#fafafa" }}>
+                  <div style={{ padding: "10px 16px 6px", fontSize: 11, fontWeight: 800, color: "#5b6472", letterSpacing: 0.8, textTransform: "uppercase", background: "#f1f3f7" }}>
                     {group}
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "8px 14px 12px" }}>
                     {cities.filter(c => c.code !== exclude?.code).map(city => (
                       <button key={city.code} onClick={() => select(city)} style={{
-                        border: "1.5px solid #e8e8e8", borderRadius: 8, padding: "6px 12px",
-                        background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#333",
+                        border: "1.5px solid #c8cfda", borderRadius: 8, padding: "6px 12px",
+                        background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#2b3240",
                       }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = "#0B4DA2"; e.currentTarget.style.color = "#0B4DA2"; e.currentTarget.style.background = "#EAF1FC"; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = "#e8e8e8"; e.currentTarget.style.color = "#333"; e.currentTarget.style.background = "#fff"; }}
@@ -527,7 +586,7 @@ function CityRow({ city, onSelect }) {
       <div style={{ width: 36, height: 36, borderRadius: 10, background: hov ? "#0B4DA2" : "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, transition: "background .15s", flexShrink: 0 }}>📍</div>
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: "#1a1a2e" }}>{city.name}</div>
-        <div style={{ fontSize: 11, color: "#999" }}>{city.sub}</div>
+        <div style={{ fontSize: 11.5, color: "#6b7280" }}>{city.sub}</div>
       </div>
       <div style={{ fontSize: 12, fontWeight: 800, color: "#0B4DA2" }}>{city.code}</div>
     </div>
@@ -565,35 +624,35 @@ function TrainLiveStatus() {
     <div style={{ padding: "20px 24px 24px" }}>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         <div style={{ flex: 2, minWidth: 180 }}>
-          <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>TRAIN NUMBER</div>
+          <div style={{ fontSize: 11, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>TRAIN NUMBER</div>
           <input value={trainNo} onChange={e => setTrainNo(e.target.value.replace(/\D/g, "").slice(0, 5))}
             placeholder="e.g. 12301"
-            style={{ border: "none", borderBottom: "2px solid #eee", outline: "none", fontSize: 22, fontWeight: 800, color: "#1a1a2e", width: "100%", padding: "4px 0", background: "none" }}
+            style={{ border: "none", borderBottom: "2px solid #c2c9d4", outline: "none", fontSize: 22, fontWeight: 800, color: "#1a1a2e", width: "100%", padding: "4px 0", background: "none" }}
             onFocus={e => e.target.style.borderBottomColor = "#0B4DA2"}
-            onBlur={e => e.target.style.borderBottomColor = "#eee"}
+            onBlur={e => e.target.style.borderBottomColor = "#c2c9d4"}
             onKeyDown={e => e.key === "Enter" && check()}
           />
-          <div style={{ fontSize: 12, color: "#bbb", marginTop: 4 }}>4 or 5 digit train number</div>
+          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>4 or 5 digit train number</div>
         </div>
         <div style={{ flex: 1.5, minWidth: 140 }}>
-          <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>DATE OF JOURNEY</div>
+          <div style={{ fontSize: 11, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>DATE OF JOURNEY</div>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            style={{ border: "none", borderBottom: "2px solid #eee", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", width: "100%", padding: "4px 0", background: "none" }}
+            style={{ border: "none", borderBottom: "2px solid #c2c9d4", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", width: "100%", padding: "4px 0", background: "none" }}
             onFocus={e => e.target.style.borderBottomColor = "#0B4DA2"}
-            onBlur={e => e.target.style.borderBottomColor = "#eee"}
+            onBlur={e => e.target.style.borderBottomColor = "#c2c9d4"}
           />
         </div>
         <div style={{ flex: 2, minWidth: 180 }}>
-          <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>
-            YOUR STOP <span style={{ color: "#bbb", fontWeight: 400 }}>(optional)</span>
+          <div style={{ fontSize: 11, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>
+            YOUR STOP <span style={{ color: "#6b7280", fontWeight: 400 }}>(optional)</span>
           </div>
           <input value={myStop} onChange={e => setMyStop(e.target.value)}
             placeholder="e.g. Bhopal or BPL"
-            style={{ border: "none", borderBottom: "2px solid #eee", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", width: "100%", padding: "4px 0", background: "none" }}
+            style={{ border: "none", borderBottom: "2px solid #c2c9d4", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", width: "100%", padding: "4px 0", background: "none" }}
             onFocus={e => e.target.style.borderBottomColor = "#0B4DA2"}
-            onBlur={e => e.target.style.borderBottomColor = "#eee"}
+            onBlur={e => e.target.style.borderBottomColor = "#c2c9d4"}
           />
-          <div style={{ fontSize: 12, color: "#bbb", marginTop: 4 }}>Station name or code</div>
+          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>Station name or code</div>
         </div>
       </div>
 
@@ -621,9 +680,9 @@ function TrainLiveStatus() {
               <div>
                 <div style={{ fontWeight: 900, fontSize: 18, color: "#1a1a2e" }}>
                   {result.trainName || `Train #${result.trainNumber}`}
-                  <span style={{ fontSize: 13, color: "#888", fontWeight: 500, marginLeft: 8 }}>#{result.trainNumber}</span>
+                  <span style={{ fontSize: 13, color: "#5f6875", fontWeight: 500, marginLeft: 8 }}>#{result.trainNumber}</span>
                 </div>
-                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Last updated: {result.updateTime}</div>
+                <div style={{ fontSize: 12, color: "#5f6875", marginTop: 2 }}>Last updated: {result.updateTime}</div>
                 <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <span style={{ background: "#00C853", color: "#fff", fontSize: 12, fontWeight: 700, padding: "3px 12px", borderRadius: 20 }}>🟢 Running</span>
                   {delay !== "On time"
@@ -648,7 +707,7 @@ function TrainLiveStatus() {
                 ["TO", result.destination],
                 ["DISTANCE COVERED", result.distanceFromSource + " / " + result.totalDistance],
               ].map(([label, val]) => (
-                <div key={label} style={{ background: "#fff", borderRadius: 10, padding: "10px 14px", border: "1px solid #eee" }}>
+                <div key={label} style={{ background: "#fff", borderRadius: 10, padding: "10px 14px", border: "1px solid #d7dce4" }}>
                   <div style={{ fontSize: 10, color: "#999", fontWeight: 700, marginBottom: 3 }}>{label}</div>
                   <div style={{ fontWeight: 700, fontSize: 13, color: "#1a1a2e" }}>{val}</div>
                 </div>
@@ -670,7 +729,7 @@ function TrainLiveStatus() {
 
           {/* Your stop info */}
           {myStop && (
-            <div style={{ background: "#fafafa", borderRadius: 12, padding: "14px 18px", border: "1.5px solid #ddd", fontSize: 13, color: "#888" }}>
+            <div style={{ background: "#fafafa", borderRadius: 12, padding: "14px 18px", border: "1.5px solid #ddd", fontSize: 13, color: "#5f6875" }}>
               ℹ️ Station-specific ETA for "{myStop}" requires the paid tier of the IRCTC API. The free tier shows current position and route messages above.
             </div>
           )}
@@ -713,15 +772,15 @@ function PNRStatus() {
   return (
     <div style={{ padding: "20px 24px 24px" }}>
       <div style={{ maxWidth: 420 }}>
-        <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>PNR NUMBER</div>
+        <div style={{ fontSize: 11, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>PNR NUMBER</div>
         <input value={pnr} onChange={e => setPnr(e.target.value.replace(/\D/g, "").slice(0, 10))}
           placeholder="Enter 10-digit PNR"
-          style={{ border: "none", borderBottom: "2px solid #eee", outline: "none", fontSize: 22, fontWeight: 800, color: "#1a1a2e", width: "100%", padding: "4px 0", background: "none", letterSpacing: 3 }}
+          style={{ border: "none", borderBottom: "2px solid #c2c9d4", outline: "none", fontSize: 22, fontWeight: 800, color: "#1a1a2e", width: "100%", padding: "4px 0", background: "none", letterSpacing: 3 }}
           onFocus={e => e.target.style.borderBottomColor = "#0B4DA2"}
-          onBlur={e => e.target.style.borderBottomColor = "#eee"}
+          onBlur={e => e.target.style.borderBottomColor = "#c2c9d4"}
           onKeyDown={e => e.key === "Enter" && check()}
         />
-        <div style={{ fontSize: 12, color: "#bbb", marginTop: 4 }}>10-digit number printed on your ticket</div>
+        <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>10-digit number printed on your ticket</div>
       </div>
 
       <div style={{ marginTop: 20 }}>
@@ -744,7 +803,7 @@ function PNRStatus() {
         <div style={{ marginTop: 20, background: "#F8FFF8", borderRadius: 14, border: "1.5px solid #00C853", padding: "20px 24px" }}>
           <div style={{ fontWeight: 900, fontSize: 17, color: "#1a1a2e", marginBottom: 14 }}>
             PNR: {result.pnr}
-            {result.chartStatus && <span style={{ marginLeft: 10, fontSize: 12, color: "#888", fontWeight: 500 }}>({result.chartStatus})</span>}
+            {result.chartStatus && <span style={{ marginLeft: 10, fontSize: 12, color: "#5f6875", fontWeight: 500 }}>({result.chartStatus})</span>}
           </div>
 
           {/* Train info */}
@@ -757,7 +816,7 @@ function PNRStatus() {
               ["Boarding At", result.boardingPoint || result.from],
               ["Class", result.journeyClass],
             ].map(([label, val]) => (
-              <div key={label} style={{ background: "#fff", borderRadius: 10, padding: "10px 14px", border: "1px solid #eee" }}>
+              <div key={label} style={{ background: "#fff", borderRadius: 10, padding: "10px 14px", border: "1px solid #d7dce4" }}>
                 <div style={{ fontSize: 11, color: "#999", fontWeight: 700, marginBottom: 3 }}>{label}</div>
                 <div style={{ fontWeight: 700, fontSize: 13, color: "#1a1a2e" }}>{val || "—"}</div>
               </div>
@@ -769,10 +828,10 @@ function PNRStatus() {
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8, letterSpacing: 0.5 }}>PASSENGER STATUS</div>
               {result.passengers.map((p, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderRadius: 10, padding: "10px 14px", border: "1px solid #eee", marginBottom: 6 }}>
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderRadius: 10, padding: "10px 14px", border: "1px solid #d7dce4", marginBottom: 6 }}>
                   <div>
                     <span style={{ fontWeight: 700, color: "#1a1a2e" }}>Passenger {p.number}</span>
-                    <span style={{ fontSize: 12, color: "#888", marginLeft: 8 }}>Booked: {p.bookingStatus}</span>
+                    <span style={{ fontSize: 12, color: "#5f6875", marginLeft: 8 }}>Booked: {p.bookingStatus}</span>
                   </div>
                   <span style={{ fontWeight: 800, fontSize: 13, color: statusColor(p.currentStatus), background: statusColor(p.currentStatus) + "18", padding: "3px 12px", borderRadius: 20 }}>
                     {p.currentStatus} {p.coachPosition ? `· ${p.coachPosition}` : ""}
@@ -896,38 +955,45 @@ function SearchForm({ activeCategory, isMobile }) {
 
         {trainTab === "book" && (
           <>
-            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "flex-start", padding: isMobile ? "20px 16px 6px" : "28px 32px 12px", gap: isMobile ? 4 : 0 }}>
-              <div style={{ flex: 2, minWidth: 160, padding: "12px 20px 12px 0", borderRight: isMobile ? "none" : "1px solid #eee" }}>
-                <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>FROM STATION</div>
+            <div style={{
+              display: "flex", flexDirection: isMobile ? "column" : "row",
+              alignItems: isMobile ? "stretch" : "flex-start",
+              padding: isMobile ? "18px 16px 6px" : "28px 32px 12px", gap: 0,
+              maxWidth: isMobile ? 440 : "none", margin: isMobile ? "0 auto" : 0, width: isMobile ? "100%" : "auto",
+            }}>
+              <div style={{ flex: 2, minWidth: 160, textAlign: isMobile ? "center" : "left", padding: isMobile ? "14px 8px" : "12px 20px 12px 0", borderRight: isMobile ? "none" : "1px solid #e3e7ef", borderBottom: isMobile ? "1px solid #e3e7ef" : "none" }}>
+                <div style={{ fontSize: 11.5, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>FROM STATION</div>
                 <CityPicker value={from} onChange={setFrom} placeholder="Select station" exclude={to} dataset={dataset} isMobile={isMobile} />
               </div>
-              <button onClick={swap} style={{
-                width: 36, height: 36, borderRadius: "50%", border: "2px solid #0B4DA2", background: "#fff",
-                cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0, zIndex: 1, margin: "0 -4px", alignSelf: "center", transition: "all .2s",
+              <button onClick={swap} aria-label="Swap from and to" style={{
+                width: 38, height: 38, borderRadius: "50%", border: "2px solid #0B4DA2", background: "#fff",
+                cursor: "pointer", fontSize: 16, color: "#0B4DA2", display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, zIndex: 1, alignSelf: "center",
+                margin: isMobile ? "-19px 0" : "0 -4px", transform: isMobile ? "rotate(90deg)" : "none",
+                boxShadow: "0 2px 8px rgba(11,77,162,0.18)", transition: "all .2s",
               }}
                 onMouseEnter={e => { e.currentTarget.style.background = "#0B4DA2"; e.currentTarget.style.color = "#fff"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#000"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#0B4DA2"; }}
               >⇌</button>
-              <div style={{ flex: 2, minWidth: 160, padding: "12px 20px", borderRight: isMobile ? "none" : "1px solid #eee" }}>
-                <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>TO STATION</div>
+              <div style={{ flex: 2, minWidth: 160, textAlign: isMobile ? "center" : "left", padding: isMobile ? "14px 8px" : "12px 20px", borderRight: isMobile ? "none" : "1px solid #e3e7ef", borderBottom: isMobile ? "1px solid #e3e7ef" : "none" }}>
+                <div style={{ fontSize: 11.5, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>TO STATION</div>
                 <CityPicker value={to} onChange={setTo} placeholder="Select station" exclude={from} dataset={dataset} isMobile={isMobile} />
               </div>
-              <div style={{ flex: 1.5, minWidth: 140, padding: "12px 20px", borderRight: isMobile ? "none" : "1px solid #eee" }}>
-                <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>DEPARTURE</div>
+              <div style={{ flex: 1.5, minWidth: 140, textAlign: isMobile ? "center" : "left", padding: isMobile ? "14px 8px" : "12px 20px", borderRight: isMobile ? "none" : "1px solid #e3e7ef", borderBottom: isMobile ? "1px solid #e3e7ef" : "none" }}>
+                <div style={{ fontSize: 11.5, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>DEPARTURE</div>
                 <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                  style={{ border: "none", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", background: "none", width: "100%" }} />
+                  style={{ border: "none", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", background: "none", width: "100%", textAlign: isMobile ? "center" : "left" }} />
               </div>
-              <div style={{ flex: 1.2, minWidth: 130, padding: "12px 0 12px 20px" }}>
-                <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>TRAVELLERS</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ flex: 1.2, minWidth: 130, textAlign: isMobile ? "center" : "left", padding: isMobile ? "14px 8px 4px" : "12px 0 12px 20px" }}>
+                <div style={{ fontSize: 11.5, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>TRAVELLERS</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: isMobile ? "center" : "flex-start" }}>
                   <button onClick={() => setTravellers(Math.max(1, travellers - 1))}
-                    style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #ddd", background: "#fff", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                    style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #aab2c0", background: "#fff", color: "#3a4150", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                   <span style={{ fontSize: 24, fontWeight: 900, color: "#1a1a2e" }}>{travellers}</span>
                   <button onClick={() => setTravellers(Math.min(9, travellers + 1))}
                     style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #0B4DA2", background: "#0B4DA2", cursor: "pointer", fontSize: 16, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                 </div>
-                <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>Passengers</div>
+                <div style={{ fontSize: 11.5, color: "#6b7280", marginTop: 4 }}>Passengers</div>
               </div>
             </div>
             <div style={{ textAlign: "center", padding: "12px 0 24px" }}>
@@ -957,7 +1023,7 @@ function SearchForm({ activeCategory, isMobile }) {
                   {trainResults.total} train{trainResults.total !== 1 ? "s" : ""} found · {from?.name} → {to?.name} · {new Date(date + "T00:00:00").toDateString()}
                 </div>
                 {trainResults.trains.length === 0 ? (
-                  <div style={{ color: "#888", fontSize: 14 }}>No trains found for this route on the selected date.</div>
+                  <div style={{ color: "#5f6875", fontSize: 14 }}>No trains found for this route on the selected date.</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {trainResults.trains.map((t, i) => (
@@ -971,7 +1037,7 @@ function SearchForm({ activeCategory, isMobile }) {
                         <div style={{ display: isMobile ? "flex" : "contents", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                           <div style={{ textAlign: isMobile ? "left" : "center" }}>
                             <div style={{ fontSize: 19, fontWeight: 900, color: "#1a1a2e" }}>{t.departureTime}</div>
-                            <div style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{t.from}</div>
+                            <div style={{ fontSize: 11, color: "#5f6875", fontWeight: 600 }}>{t.from}</div>
                           </div>
                           <div style={{ textAlign: "center", color: "#9aa3af" }}>
                             <div style={{ fontSize: 11, fontWeight: 600 }}>{fmtDuration(t.duration)}</div>
@@ -979,7 +1045,7 @@ function SearchForm({ activeCategory, isMobile }) {
                           </div>
                           <div style={{ textAlign: isMobile ? "right" : "center" }}>
                             <div style={{ fontSize: 19, fontWeight: 900, color: "#1a1a2e" }}>{t.arrivalTime}</div>
-                            <div style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{t.to}</div>
+                            <div style={{ fontSize: 11, color: "#5f6875", fontWeight: 600 }}>{t.to}</div>
                           </div>
                         </div>
                         {/* Classes */}
@@ -1019,58 +1085,65 @@ function SearchForm({ activeCategory, isMobile }) {
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "flex-start", padding: isMobile ? "20px 16px 6px" : "28px 32px 12px", gap: isMobile ? 4 : 0 }}>
+      <div style={{
+        display: "flex", flexDirection: isMobile ? "column" : "row",
+        alignItems: isMobile ? "stretch" : "flex-start",
+        padding: isMobile ? "18px 16px 6px" : "28px 32px 12px",
+        gap: isMobile ? 0 : 0,
+        maxWidth: isMobile ? 440 : "none", margin: isMobile ? "0 auto" : 0, width: isMobile ? "100%" : "auto",
+      }}>
         {/* FROM */}
-        <div style={{ flex: 2, minWidth: 160, padding: "12px 20px 12px 0", borderRight: isMobile ? "none" : "1px solid #eee" }}>
-          <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>{meta.fromLabel}</div>
+        <div style={{ flex: 2, minWidth: 160, textAlign: isMobile ? "center" : "left", padding: isMobile ? "14px 8px" : "12px 20px 12px 0", borderRight: isMobile ? "none" : "1px solid #e3e7ef", borderBottom: isMobile ? "1px solid #e3e7ef" : "none" }}>
+          <div style={{ fontSize: 11.5, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>{meta.fromLabel}</div>
           <CityPicker value={from} onChange={setFrom} placeholder="Select city" exclude={to} dataset={dataset} isMobile={isMobile} />
-          {from && <div style={{ fontSize: 11, color: "#bbb", marginTop: 4 }}>{meta.fromHint}</div>}
-          {!from && <div style={{ fontSize: 12, color: "#bbb", marginTop: 4 }}>{meta.fromHint}</div>}
+          <div style={{ fontSize: 12, color: "#7a828f", marginTop: 4 }}>{meta.fromHint}</div>
         </div>
 
         {/* SWAP (not for hotels/homestays) */}
         {!["hotels", "homestays"].includes(activeCategory) && (
-          <button onClick={swap} style={{
-            width: 36, height: 36, borderRadius: "50%", border: "2px solid #0B4DA2", background: "#fff",
-            cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0, zIndex: 1, margin: "0 -4px", alignSelf: "center", transition: "all .2s",
+          <button onClick={swap} aria-label="Swap from and to" style={{
+            width: 38, height: 38, borderRadius: "50%", border: "2px solid #0B4DA2", background: "#fff",
+            cursor: "pointer", fontSize: 16, color: "#0B4DA2", display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0, zIndex: 1, alignSelf: "center",
+            margin: isMobile ? "-19px 0" : "0 -4px", transform: isMobile ? "rotate(90deg)" : "none",
+            boxShadow: "0 2px 8px rgba(11,77,162,0.18)", transition: "all .2s",
           }}
             onMouseEnter={e => { e.currentTarget.style.background = "#0B4DA2"; e.currentTarget.style.color = "#fff"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#000"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#0B4DA2"; }}
           >⇌</button>
         )}
 
         {/* TO (not for hotels/homestays single-city) */}
         {!["hotels", "homestays"].includes(activeCategory) && (
-          <div style={{ flex: 2, minWidth: 160, padding: "12px 20px", borderRight: isMobile ? "none" : "1px solid #eee" }}>
-            <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>{meta.toLabel}</div>
+          <div style={{ flex: 2, minWidth: 160, textAlign: isMobile ? "center" : "left", padding: isMobile ? "14px 8px" : "12px 20px", borderRight: isMobile ? "none" : "1px solid #e3e7ef", borderBottom: isMobile ? "1px solid #e3e7ef" : "none" }}>
+            <div style={{ fontSize: 11.5, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>{meta.toLabel}</div>
             <CityPicker value={to} onChange={setTo} placeholder="Select city" exclude={from} dataset={dataset} isMobile={isMobile} />
-            {!to && <div style={{ fontSize: 12, color: "#bbb", marginTop: 4 }}>{meta.toHint}</div>}
+            <div style={{ fontSize: 12, color: "#7a828f", marginTop: 4 }}>{meta.toHint}</div>
           </div>
         )}
 
         {/* DATE */}
-        <div style={{ flex: 1.5, minWidth: 140, padding: "12px 20px", borderRight: isMobile ? "none" : "1px solid #eee" }}>
-          <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>
+        <div style={{ flex: 1.5, minWidth: 140, textAlign: isMobile ? "center" : "left", padding: isMobile ? "14px 8px" : "12px 20px", borderRight: isMobile ? "none" : "1px solid #e3e7ef", borderBottom: isMobile ? "1px solid #e3e7ef" : "none" }}>
+          <div style={{ fontSize: 11.5, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>
             {["hotels", "homestays"].includes(activeCategory) ? "CHECK-IN" : "DEPARTURE"}
           </div>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            style={{ border: "none", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", background: "none", width: "100%" }} />
+            style={{ border: "none", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", background: "none", width: "100%", textAlign: isMobile ? "center" : "left" }} />
         </div>
 
         {/* TRAVELLERS */}
-        <div style={{ flex: 1.2, minWidth: 130, padding: "12px 0 12px 20px" }}>
-          <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: 0.8, marginBottom: 8 }}>
+        <div style={{ flex: 1.2, minWidth: 130, textAlign: isMobile ? "center" : "left", padding: isMobile ? "14px 8px 4px" : "12px 0 12px 20px" }}>
+          <div style={{ fontSize: 11.5, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>
             {["hotels", "homestays"].includes(activeCategory) ? "GUESTS" : "TRAVELLERS"}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: isMobile ? "center" : "flex-start" }}>
             <button onClick={() => setTravellers(Math.max(1, travellers - 1))}
-              style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #ddd", background: "#fff", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+              style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #aab2c0", background: "#fff", color: "#3a4150", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
             <span style={{ fontSize: 24, fontWeight: 900, color: "#1a1a2e" }}>{travellers}</span>
             <button onClick={() => setTravellers(Math.min(9, travellers + 1))}
               style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #0B4DA2", background: "#0B4DA2", cursor: "pointer", fontSize: 16, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
           </div>
-          <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>Economy / Premium</div>
+          <div style={{ fontSize: 11.5, color: "#6b7280", marginTop: 4 }}>Economy / Premium</div>
         </div>
       </div>
 
@@ -1118,7 +1191,7 @@ function SearchForm({ activeCategory, isMobile }) {
                 {hotelResults.total} hotel{hotelResults.total !== 1 ? "s" : ""} in {from?.name} · check-in {new Date(date + "T00:00:00").toDateString()}
               </div>
               {hotelResults.hotels.length === 0 ? (
-                <div style={{ color: "#888", fontSize: 14 }}>No hotels found for this destination/date.</div>
+                <div style={{ color: "#5f6875", fontSize: 14 }}>No hotels found for this destination/date.</div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   {hotelResults.hotels.map((h) => (
@@ -1131,7 +1204,7 @@ function SearchForm({ activeCategory, isMobile }) {
                       <div style={{ padding: isMobile ? "12px 16px 6px" : "16px 18px", minWidth: 0 }}>
                         <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", lineHeight: 1.3 }}>{h.name}</div>
                         {h.stars > 0 && <div style={{ color: "#f5a623", fontSize: 13, marginTop: 3 }}>{"★".repeat(h.stars)}</div>}
-                        {h.location && <div style={{ fontSize: 12.5, color: "#888", marginTop: 5 }}>📍 {h.location}</div>}
+                        {h.location && <div style={{ fontSize: 12.5, color: "#5f6875", marginTop: 5 }}>📍 {h.location}</div>}
                         {h.rating != null && (
                           <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 7 }}>
                             <span style={{ background: "#0B4DA2", color: "#fff", fontSize: 12, fontWeight: 800, padding: "2px 8px", borderRadius: 6 }}>{h.rating}</span>
@@ -1163,7 +1236,7 @@ function SearchForm({ activeCategory, isMobile }) {
                 {flightResults.total} flight{flightResults.total !== 1 ? "s" : ""} found · {from?.name} → {to?.name} · {new Date(date + "T00:00:00").toDateString()}
               </div>
               {flightResults.flights.length === 0 ? (
-                <div style={{ color: "#888", fontSize: 14 }}>No flights found for this route on the selected date.</div>
+                <div style={{ color: "#5f6875", fontSize: 14 }}>No flights found for this route on the selected date.</div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {flightResults.flights.map((f) => (
@@ -1177,7 +1250,7 @@ function SearchForm({ activeCategory, isMobile }) {
                       <div style={{ display: isMobile ? "flex" : "contents", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                         <div style={{ textAlign: isMobile ? "left" : "center" }}>
                           <div style={{ fontSize: 18, fontWeight: 900, color: "#1a1a2e" }}>{f.departure}</div>
-                          <div style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{f.from}</div>
+                          <div style={{ fontSize: 11, color: "#5f6875", fontWeight: 600 }}>{f.from}</div>
                         </div>
                         <div style={{ textAlign: "center", color: "#9aa3af" }}>
                           <div style={{ fontSize: 11, fontWeight: 600 }}>{f.duration}</div>
@@ -1186,7 +1259,7 @@ function SearchForm({ activeCategory, isMobile }) {
                         </div>
                         <div style={{ textAlign: isMobile ? "right" : "center" }}>
                           <div style={{ fontSize: 18, fontWeight: 900, color: "#1a1a2e" }}>{f.arrival}</div>
-                          <div style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{f.to}</div>
+                          <div style={{ fontSize: 11, color: "#5f6875", fontWeight: 600 }}>{f.to}</div>
                         </div>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: isMobile ? "flex-start" : "flex-end", gap: 6 }}>
@@ -1284,28 +1357,31 @@ export default function WanderlustApp() {
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "28px 14px" : "40px 24px" }}>
-        {/* SPECIAL FARES */}
-        <Reveal><div style={{ display: "flex", gap: 12, overflowX: "auto", marginBottom: 48, padding: "4px 0", scrollbarWidth: "none" }}>
-          {[
-            { label: "Regular", sub: "Regular fares", active: true },
-            { label: "Student", sub: "Extra discounts" },
-            { label: "Armed Forces", sub: "Up to ₹600 off" },
-            { label: "Senior Citizen", sub: "Up to ₹600 off" },
-            { label: "Doctor & Nurses", sub: "Up to ₹600 off" },
-          ].map(f => (
-            <div key={f.label} style={{ padding: "10px 20px", borderRadius: 10, whiteSpace: "nowrap", border: f.active ? "2px solid #0B4DA2" : "2px solid #e0e0e0", background: f.active ? "#EAF1FC" : "#fff", cursor: "pointer" }}>
-              <div style={{ fontWeight: 700, fontSize: 13.5, color: f.active ? "#0B4DA2" : "#333" }}>{f.label}</div>
-              <div style={{ fontSize: 11, color: "#888" }}>{f.sub}</div>
-            </div>
-          ))}
+        {/* SPECIAL FARES — grouped into its own labelled card zone */}
+        <Reveal><div style={{ background: "#fff", border: "1px solid #e3e7ef", borderRadius: 16, padding: isMobile ? "16px 14px" : "20px 22px", marginBottom: 40, boxShadow: "0 2px 10px rgba(4,29,54,0.05)" }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e", marginBottom: 12, letterSpacing: 0.3 }}>🎫 Select a Fare Type</div>
+          <div style={{ display: "flex", gap: 12, overflowX: "auto", padding: "2px 0", scrollbarWidth: "none" }}>
+            {[
+              { label: "Regular", sub: "Regular fares", active: true },
+              { label: "Student", sub: "Extra discounts" },
+              { label: "Armed Forces", sub: "Up to ₹600 off" },
+              { label: "Senior Citizen", sub: "Up to ₹600 off" },
+              { label: "Doctor & Nurses", sub: "Up to ₹600 off" },
+            ].map(f => (
+              <div key={f.label} style={{ padding: "10px 20px", borderRadius: 10, whiteSpace: "nowrap", flexShrink: 0, border: f.active ? "2px solid #0B4DA2" : "2px solid #c8cfda", background: f.active ? "#EAF1FC" : "#fff", cursor: "pointer" }}>
+                <div style={{ fontWeight: 700, fontSize: 13.5, color: f.active ? "#0B4DA2" : "#2b3240" }}>{f.label}</div>
+                <div style={{ fontSize: 11.5, color: "#5f6875" }}>{f.sub}</div>
+              </div>
+            ))}
+          </div>
         </div></Reveal>
 
-        {/* OFFERS */}
-        <Reveal><div style={{ marginBottom: 52 }}>
+        {/* OFFERS — own zone on a soft tinted card */}
+        <Reveal><div style={{ background: "linear-gradient(180deg, #F2F7FE, #FFFFFF)", border: "1px solid #dbe5f5", borderRadius: 18, padding: isMobile ? "20px 16px" : "26px 24px", marginBottom: 40, boxShadow: "0 2px 12px rgba(4,29,54,0.05)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a2e" }}>🎁 Exclusive Offers</h2>
-              <p style={{ margin: "4px 0 0", color: "#888", fontSize: 13 }}>Handpicked deals just for you</p>
+              <p style={{ margin: "4px 0 0", color: "#5f6875", fontSize: 13 }}>Handpicked deals just for you</p>
             </div>
             <a href="#" style={{ color: "#0B4DA2", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>View All →</a>
           </div>
@@ -1323,12 +1399,12 @@ export default function WanderlustApp() {
           </div>
         </div></Reveal>
 
-        {/* DESTINATIONS */}
-        <Reveal><div>
+        {/* DESTINATIONS — own card zone */}
+        <Reveal><div style={{ background: "#fff", border: "1px solid #e3e7ef", borderRadius: 18, padding: isMobile ? "20px 16px" : "26px 24px", boxShadow: "0 2px 12px rgba(4,29,54,0.05)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a2e" }}>🌏 Popular Destinations</h2>
-              <p style={{ margin: "4px 0 0", color: "#888", fontSize: 13 }}>Top picks travellers are loving right now</p>
+              <p style={{ margin: "4px 0 0", color: "#5f6875", fontSize: 13 }}>Top picks travellers are loving right now</p>
             </div>
             <a href="#" style={{ color: "#0B4DA2", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>Explore All →</a>
           </div>
@@ -1346,7 +1422,7 @@ export default function WanderlustApp() {
                   <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(255,255,255,0.95)", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: "#0B4DA2" }}>from {d.price}</div>
                 </div>
                 <div style={{ padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontSize: 12.5, color: "#666" }}>✈ Flights + 🏨 Hotels</div>
+                  <div style={{ fontSize: 12.5, color: "#5f6875" }}>✈ Flights + 🏨 Hotels</div>
                   <button style={{ background: "linear-gradient(135deg, #0B4DA2, #1768D1)", color: "#fff", border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Book Now</button>
                 </div>
               </div>
@@ -1356,7 +1432,7 @@ export default function WanderlustApp() {
       </div>
 
       {/* FOOTER */}
-      <footer style={{ background: "#1a1a2e", color: "#8899aa", padding: "40px 32px 24px", marginTop: 40 }}>
+      <footer style={{ background: "#1a1a2e", color: "#9fb0c4", padding: "40px 32px 24px", marginTop: 40 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 32, marginBottom: 36 }}>
             <div>
@@ -1374,17 +1450,17 @@ export default function WanderlustApp() {
               <div key={col.title}>
                 <div style={{ color: "#fff", fontWeight: 700, fontSize: 13.5, marginBottom: 12 }}>{col.title}</div>
                 {col.links.map(l => (
-                  <a key={l} href="#" style={{ display: "block", color: "#8899aa", fontSize: 13, textDecoration: "none", marginBottom: 7 }}
-                    onMouseEnter={e => e.target.style.color = "#0B4DA2"} onMouseLeave={e => e.target.style.color = "#8899aa"}>{l}</a>
+                  <a key={l} href="#" style={{ display: "block", color: "#9fb0c4", fontSize: 13, textDecoration: "none", marginBottom: 7 }}
+                    onMouseEnter={e => e.target.style.color = "#8FBEFF"} onMouseLeave={e => e.target.style.color = "#9fb0c4"}>{l}</a>
                 ))}
               </div>
             ))}
           </div>
-          <div style={{ borderTop: "1px solid #ffffff15", paddingTop: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10, fontSize: 12 }}>
+          <div style={{ borderTop: "1px solid #ffffff22", paddingTop: 20, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10, fontSize: 12 }}>
             <div>© 2026 Wanderlust Travel Planner. All rights reserved.</div>
             <div style={{ display: "flex", gap: 20 }}>
               {["Privacy Policy", "Terms of Service", "Cookie Policy"].map(l => (
-                <a key={l} href="#" style={{ color: "#8899aa", textDecoration: "none" }}>{l}</a>
+                <a key={l} href="#" style={{ color: "#9fb0c4", textDecoration: "none" }}>{l}</a>
               ))}
             </div>
           </div>
