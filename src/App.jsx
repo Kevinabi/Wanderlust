@@ -1,4 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Icon } from "./icons.jsx";
+
+// Today's date in YYYY-MM-DD (local) — used to default & floor all date pickers.
+const todayISO = () => {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+};
 
 // ─── API CONFIG ───────────────────────────────────────────────────────────────
 // In dev (vite) the API runs on the local Express server at :3001.
@@ -232,7 +240,7 @@ function CategoryTiles({ categories, activeCategory, setActiveCategory, compact,
                 color: active ? "#0B4DA2" : "#2b3240", transition: "color .2s",
                 scrollSnapAlign: isMobile ? "start" : "none",
               }}>
-              <span style={{ fontSize: iconSize, lineHeight: 1, height: iconSize, display: "flex", alignItems: "center", justifyContent: "center" }}>{cat.icon}</span>
+              <span style={{ lineHeight: 1, height: iconSize, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name={cat.icon} size={iconSize} stroke={1.7} /></span>
               <span style={{ fontSize: labelSize, fontWeight: active ? 700 : 600, textAlign: "center", lineHeight: 1.2, whiteSpace: "normal", width: "100%", maxWidth: tileW - 2, height: labelH, display: "flex", alignItems: "flex-start", justifyContent: "center" }}>{cat.label}</span>
               {active && <span style={{ position: "absolute", bottom: 0, left: "18%", right: "18%", height: 3, borderRadius: 3, background: "#0B4DA2" }} />}
             </button>
@@ -453,25 +461,25 @@ const DATASETS = {
 };
 
 const CATEGORY_META = {
-  flights: { fromLabel: "FROM", toLabel: "TO", fromHint: "Departure Airport", toHint: "Arrival Airport", icon: "✈️" },
-  hotels: { fromLabel: "CITY / DESTINATION", toLabel: "CHECK-IN", fromHint: "Where do you want to stay?", toHint: "", icon: "🏨" },
-  tours: { fromLabel: "STARTING FROM", toLabel: "DESTINATION", fromHint: "Your city", toHint: "Tour destination", icon: "🗺️" },
-  homestays: { fromLabel: "CITY / AREA", toLabel: "CHECK-IN", fromHint: "Where do you want to stay?", toHint: "", icon: "🏡" },
-  trains: { fromLabel: "FROM STATION", toLabel: "TO STATION", fromHint: "Departure Railway Station", toHint: "Arrival Railway Station", icon: "🚆" },
-  buses: { fromLabel: "FROM", toLabel: "TO", fromHint: "Departure Bus Stand", toHint: "Arrival Bus Stand", icon: "🚌" },
-  cabs: { fromLabel: "PICK UP", toLabel: "DROP OFF", fromHint: "Your pickup location", toHint: "Your drop location", icon: "🚕" },
-  cruises: { fromLabel: "DEPARTURE PORT", toLabel: "DESTINATION", fromHint: "Departure city / port", toHint: "Cruise destination", icon: "🛳️" },
+  flights: { fromLabel: "FROM", toLabel: "TO", fromHint: "Departure Airport", toHint: "Arrival Airport", icon: "flights" },
+  hotels: { fromLabel: "CITY / DESTINATION", toLabel: "CHECK-IN", fromHint: "Where do you want to stay?", toHint: "", icon: "hotels" },
+  tours: { fromLabel: "STARTING FROM", toLabel: "DESTINATION", fromHint: "Your city", toHint: "Tour destination", icon: "tours" },
+  homestays: { fromLabel: "CITY / AREA", toLabel: "CHECK-IN", fromHint: "Where do you want to stay?", toHint: "", icon: "homestays" },
+  trains: { fromLabel: "FROM STATION", toLabel: "TO STATION", fromHint: "Departure Railway Station", toHint: "Arrival Railway Station", icon: "trains" },
+  buses: { fromLabel: "FROM", toLabel: "TO", fromHint: "Departure Bus Stand", toHint: "Arrival Bus Stand", icon: "buses" },
+  cabs: { fromLabel: "PICK UP", toLabel: "DROP OFF", fromHint: "Your pickup location", toHint: "Your drop location", icon: "cabs" },
+  cruises: { fromLabel: "DEPARTURE PORT", toLabel: "DESTINATION", fromHint: "Departure city / port", toHint: "Cruise destination", icon: "cruises" },
 };
 
 const categories = [
-  { id: "flights", label: "Flights", icon: "✈️" },
-  { id: "hotels", label: "Hotels", icon: "🏨" },
-  { id: "tours", label: "Tours & Activities", icon: "🗺️" },
-  { id: "homestays", label: "Villas & Homestays", icon: "🏡" },
-  { id: "trains", label: "Trains", icon: "🚆" },
-  { id: "buses", label: "Buses", icon: "🚌" },
-  { id: "cabs", label: "Cabs", icon: "🚕" },
-  { id: "cruises", label: "Cruises", icon: "🛳️" },
+  { id: "flights", label: "Flights", icon: "flights" },
+  { id: "hotels", label: "Hotels", icon: "hotels" },
+  { id: "tours", label: "Tours & Activities", icon: "tours" },
+  { id: "homestays", label: "Villas & Homestays", icon: "homestays" },
+  { id: "trains", label: "Trains", icon: "trains" },
+  { id: "buses", label: "Buses", icon: "buses" },
+  { id: "cabs", label: "Cabs", icon: "cabs" },
+  { id: "cruises", label: "Cruises", icon: "cruises" },
 ];
 
 const destinations = [
@@ -541,7 +549,7 @@ function CityPicker({ value, onChange, placeholder, exclude, dataset, isMobile }
           zIndex: 999, overflow: "hidden", border: "1px solid #f0f0f0",
         }}>
           <div style={{ padding: "14px 16px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 16 }}>🔍</span>
+            <Icon name="search" size={16} color="#6b7280" />
             <input autoFocus value={query} onChange={e => setQuery(e.target.value)}
               placeholder="Search city, station or airport…"
               style={{ border: "none", outline: "none", fontSize: 14, width: "100%", color: "#1a1a2e", background: "none" }} />
@@ -583,7 +591,7 @@ function CityRow({ city, onSelect }) {
   return (
     <div onClick={() => onSelect(city)} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", cursor: "pointer", background: hov ? "#EAF1FC" : "#fff", transition: "background .15s" }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: hov ? "#0B4DA2" : "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, transition: "background .15s", flexShrink: 0 }}>📍</div>
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: hov ? "#0B4DA2" : "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", transition: "background .15s", flexShrink: 0 }}><Icon name="pin" size={16} color={hov ? "#fff" : "#6b7280"} /></div>
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: "#1a1a2e" }}>{city.name}</div>
         <div style={{ fontSize: 11.5, color: "#6b7280" }}>{city.sub}</div>
@@ -663,12 +671,13 @@ function TrainLiveStatus() {
           padding: "14px 56px", fontSize: 16, fontWeight: 800,
           cursor: loading || !trainNo ? "default" : "pointer",
           boxShadow: !loading && trainNo ? "0 6px 20px rgba(11,77,162,0.32)" : "none",
-        }}>{loading ? "⏳ Fetching Live Status…" : "🔍 CHECK STATUS"}</button>
+          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9,
+        }}>{loading ? "Fetching Live Status…" : <><Icon name="search" size={17} color="#fff" /> CHECK STATUS</>}</button>
       </div>
 
       {error && (
         <div style={{ marginTop: 16, background: "#FFF0F0", borderRadius: 12, border: "1.5px solid #E91E63", padding: "16px 20px", color: "#c62828", fontWeight: 600 }}>
-          ❌ {error}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><Icon name="alert" size={16} color="#c62828" /> {error}</span>
         </div>
       )}
 
@@ -684,10 +693,10 @@ function TrainLiveStatus() {
                 </div>
                 <div style={{ fontSize: 12, color: "#5f6875", marginTop: 2 }}>Last updated: {result.updateTime}</div>
                 <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <span style={{ background: "#00C853", color: "#fff", fontSize: 12, fontWeight: 700, padding: "3px 12px", borderRadius: 20 }}>🟢 Running</span>
+                  <span style={{ background: "#00C853", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} /> Running</span>
                   {delay !== "On time"
-                    ? <span style={{ background: "#EAF1FC", color: "#0B4DA2", fontSize: 12, fontWeight: 700, padding: "3px 12px", borderRadius: 20 }}>⏱ {delay} late</span>
-                    : <span style={{ background: "#E8F5E9", color: "#00C853", fontSize: 12, fontWeight: 700, padding: "3px 12px", borderRadius: 20 }}>✅ On Time</span>
+                    ? <span style={{ background: "#EAF1FC", color: "#0B4DA2", fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="clock" size={13} color="#0B4DA2" /> {delay} late</span>
+                    : <span style={{ background: "#E8F5E9", color: "#00C853", fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="check" size={13} color="#00C853" /> On Time</span>
                   }
                 </div>
               </div>
@@ -719,8 +728,8 @@ function TrainLiveStatus() {
               <div style={{ marginTop: 14 }}>
                 <div style={{ fontSize: 11, color: "#999", fontWeight: 700, marginBottom: 8, letterSpacing: 0.5 }}>LIVE LOCATION UPDATES</div>
                 {result.locationMessages.map((msg, i) => (
-                  <div key={i} style={{ fontSize: 13, color: "#444", padding: "6px 0", borderBottom: "1px solid #f5f5f5" }}>
-                    📍 {msg}
+                  <div key={i} style={{ fontSize: 13, color: "#444", padding: "6px 0", borderBottom: "1px solid #f5f5f5", display: "flex", alignItems: "flex-start", gap: 7 }}>
+                    <span style={{ flexShrink: 0, marginTop: 2 }}><Icon name="pin" size={13} color="#0B4DA2" /></span> {msg}
                   </div>
                 ))}
               </div>
@@ -729,8 +738,9 @@ function TrainLiveStatus() {
 
           {/* Your stop info */}
           {myStop && (
-            <div style={{ background: "#fafafa", borderRadius: 12, padding: "14px 18px", border: "1.5px solid #ddd", fontSize: 13, color: "#5f6875" }}>
-              ℹ️ Station-specific ETA for "{myStop}" requires the paid tier of the IRCTC API. The free tier shows current position and route messages above.
+            <div style={{ background: "#fafafa", borderRadius: 12, padding: "14px 18px", border: "1.5px solid #ddd", fontSize: 13, color: "#5f6875", display: "flex", alignItems: "flex-start", gap: 9 }}>
+              <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="info" size={15} color="#5f6875" /></span>
+              <span>Station-specific ETA for "{myStop}" requires the paid tier of the IRCTC API. The free tier shows current position and route messages above.</span>
             </div>
           )}
         </div>
@@ -790,12 +800,13 @@ function PNRStatus() {
           padding: "14px 48px", fontSize: 16, fontWeight: 800,
           cursor: pnr.length < 10 || loading ? "default" : "pointer",
           boxShadow: pnr.length === 10 && !loading ? "0 6px 20px rgba(11,77,162,0.32)" : "none",
-        }}>{loading ? "⏳ Checking PNR…" : "🔍 CHECK PNR STATUS"}</button>
+          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9,
+        }}>{loading ? "Checking PNR…" : <><Icon name="search" size={17} color="#fff" /> CHECK PNR STATUS</>}</button>
       </div>
 
       {error && (
         <div style={{ marginTop: 16, background: "#FFF0F0", borderRadius: 12, border: "1.5px solid #E91E63", padding: "16px 20px", color: "#c62828", fontWeight: 600 }}>
-          ❌ {error}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><Icon name="alert" size={16} color="#c62828" /> {error}</span>
         </div>
       )}
 
@@ -852,7 +863,7 @@ function SearchForm({ activeCategory, isMobile }) {
   const [tripType, setTripType] = useState("oneway");
   const [from, setFrom] = useState(null);
   const [to, setTo] = useState(null);
-  const [date, setDate] = useState("2026-06-20");
+  const [date, setDate] = useState(todayISO);
   const [travellers, setTravellers] = useState(1);
   const [trainTab, setTrainTab] = useState("book");
 
@@ -981,7 +992,7 @@ function SearchForm({ activeCategory, isMobile }) {
               </div>
               <div style={{ flex: 1.5, minWidth: 140, textAlign: isMobile ? "center" : "left", padding: isMobile ? "14px 8px" : "12px 20px", borderRight: isMobile ? "none" : "1px solid #e3e7ef", borderBottom: isMobile ? "1px solid #e3e7ef" : "none" }}>
                 <div style={{ fontSize: 11.5, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>DEPARTURE</div>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                <input type="date" value={date} min={todayISO()} onChange={e => setDate(e.target.value)}
                   style={{ border: "none", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", background: "none", width: "100%", textAlign: isMobile ? "center" : "left" }} />
               </div>
               <div style={{ flex: 1.2, minWidth: 130, textAlign: isMobile ? "center" : "left", padding: isMobile ? "14px 8px 4px" : "12px 0 12px 20px" }}>
@@ -1003,7 +1014,8 @@ function SearchForm({ activeCategory, isMobile }) {
                 padding: "16px 78px", fontSize: 18, fontWeight: 800,
                 cursor: !from || !to || trainLoading ? "default" : "pointer",
                 boxShadow: from && to && !trainLoading ? "0 6px 20px rgba(11,77,162,0.32)" : "none",
-              }}>{trainLoading ? "⏳ Searching…" : "🔍 SEARCH TRAINS"}</button>
+                display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10,
+              }}>{trainLoading ? "Searching…" : <><Icon name="search" size={18} color="#fff" /> SEARCH TRAINS</>}</button>
               {!from || !to ? (
                 <div style={{ marginTop: 8, color: "#aaa", fontSize: 13 }}>Select both stations to search</div>
               ) : null}
@@ -1012,7 +1024,7 @@ function SearchForm({ activeCategory, isMobile }) {
             {/* Train error */}
             {trainError && (
               <div style={{ margin: "0 24px 20px", background: "#FFF0F0", borderRadius: 12, border: "1.5px solid #E91E63", padding: "14px 18px", color: "#c62828", fontWeight: 600 }}>
-                ❌ {trainError}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><Icon name="alert" size={16} color="#c62828" /> {trainError}</span>
               </div>
             )}
 
@@ -1127,7 +1139,7 @@ function SearchForm({ activeCategory, isMobile }) {
           <div style={{ fontSize: 11.5, color: "#5b6472", fontWeight: 800, letterSpacing: 0.8, marginBottom: 8 }}>
             {["hotels", "homestays"].includes(activeCategory) ? "CHECK-IN" : "DEPARTURE"}
           </div>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)}
+          <input type="date" value={date} min={todayISO()} onChange={e => setDate(e.target.value)}
             style={{ border: "none", outline: "none", fontSize: 18, fontWeight: 800, color: "#1a1a2e", background: "none", width: "100%", textAlign: isMobile ? "center" : "left" }} />
         </div>
 
@@ -1166,10 +1178,15 @@ function SearchForm({ activeCategory, isMobile }) {
             cursor: (activeCategory === "flights" && flightLoading) || (activeCategory === "hotels" && hotelLoading) ? "default" : "pointer",
             opacity: (activeCategory === "flights" && flightLoading) || (activeCategory === "hotels" && hotelLoading) ? 0.85 : 1,
             boxShadow: "0 6px 20px rgba(11,77,162,0.32)", transition: "transform .15s",
+            display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10,
           }}
           onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
           onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}
-        >{activeCategory === "flights" ? (flightLoading ? "⏳ Searching Flights…" : "✈️ SEARCH FLIGHTS") : activeCategory === "hotels" ? (hotelLoading ? "⏳ Searching Hotels…" : "🏨 SEARCH HOTELS") : `${meta.icon} SEARCH ${activeCategory.toUpperCase()}`}</button>
+        >{activeCategory === "flights"
+            ? (flightLoading ? "Searching Flights…" : <><Icon name="flights" size={18} color="#fff" /> SEARCH FLIGHTS</>)
+            : activeCategory === "hotels"
+            ? (hotelLoading ? "Searching Hotels…" : <><Icon name="hotels" size={18} color="#fff" /> SEARCH HOTELS</>)
+            : <><Icon name={meta.icon} size={18} color="#fff" /> SEARCH {activeCategory.toUpperCase()}</>}</button>
         {searched && from && (
           <div style={{ marginTop: 10, color: "#00897B", fontWeight: 600, fontSize: 13 }}>
             ✓ Searching {from.name}{to ? ` → ${to.name}` : ""} for {travellers} {["hotels","homestays"].includes(activeCategory) ? "guest" : "traveller"}{travellers > 1 ? "s" : ""} on {new Date(date).toDateString()}
@@ -1183,7 +1200,7 @@ function SearchForm({ activeCategory, isMobile }) {
       {activeCategory === "hotels" && (hotelError || hotelResults) && (
         <div style={{ padding: "0 24px 24px" }}>
           {hotelError && (
-            <div style={{ background: "#FFF0F0", borderRadius: 12, border: "1.5px solid #E91E63", padding: "14px 18px", color: "#c62828", fontWeight: 600 }}>❌ {hotelError}</div>
+            <div style={{ background: "#FFF0F0", borderRadius: 12, border: "1.5px solid #E91E63", padding: "14px 18px", color: "#c62828", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}><Icon name="alert" size={16} color="#c62828" /> {hotelError}</div>
           )}
           {hotelResults && (
             <>
@@ -1199,12 +1216,12 @@ function SearchForm({ activeCategory, isMobile }) {
                       <div style={{ height: isMobile ? 160 : "100%", minHeight: 120, background: "#eef1f6" }}>
                         {h.image
                           ? <img src={h.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                          : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 30 }}>🏨</div>}
+                          : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}><Icon name="hotels" size={30} color="#9aa3af" /></div>}
                       </div>
                       <div style={{ padding: isMobile ? "12px 16px 6px" : "16px 18px", minWidth: 0 }}>
                         <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", lineHeight: 1.3 }}>{h.name}</div>
                         {h.stars > 0 && <div style={{ color: "#f5a623", fontSize: 13, marginTop: 3 }}>{"★".repeat(h.stars)}</div>}
-                        {h.location && <div style={{ fontSize: 12.5, color: "#5f6875", marginTop: 5 }}>📍 {h.location}</div>}
+                        {h.location && <div style={{ fontSize: 12.5, color: "#5f6875", marginTop: 5, display: "flex", alignItems: "center", gap: 5 }}><Icon name="pin" size={13} color="#5f6875" /> {h.location}</div>}
                         {h.rating != null && (
                           <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 7 }}>
                             <span style={{ background: "#0B4DA2", color: "#fff", fontSize: 12, fontWeight: 800, padding: "2px 8px", borderRadius: 6 }}>{h.rating}</span>
@@ -1228,7 +1245,7 @@ function SearchForm({ activeCategory, isMobile }) {
       {activeCategory === "flights" && (flightError || flightResults) && (
         <div style={{ padding: "0 24px 24px" }}>
           {flightError && (
-            <div style={{ background: "#FFF0F0", borderRadius: 12, border: "1.5px solid #E91E63", padding: "14px 18px", color: "#c62828", fontWeight: 600 }}>❌ {flightError}</div>
+            <div style={{ background: "#FFF0F0", borderRadius: 12, border: "1.5px solid #E91E63", padding: "14px 18px", color: "#c62828", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}><Icon name="alert" size={16} color="#c62828" /> {flightError}</div>
           )}
           {flightResults && (
             <>
@@ -1244,7 +1261,7 @@ function SearchForm({ activeCategory, isMobile }) {
                       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                         {f.airlineLogo
                           ? <img src={f.airlineLogo} alt="" style={{ width: 30, height: 30, objectFit: "contain", flexShrink: 0 }} />
-                          : <div style={{ width: 30, height: 30, borderRadius: 7, background: "#EAF1FC", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>✈️</div>}
+                          : <div style={{ width: 30, height: 30, borderRadius: 7, background: "#EAF1FC", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="flights" size={16} color="#0B4DA2" /></div>}
                         <div style={{ fontWeight: 800, fontSize: 14, color: "#1a1a2e", lineHeight: 1.3 }}>{f.airline}</div>
                       </div>
                       <div style={{ display: isMobile ? "flex" : "contents", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
@@ -1294,21 +1311,23 @@ export default function WanderlustApp() {
       {/* Scroll-progress flight mover */}
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 3, background: "rgba(11,77,162,0.12)", zIndex: 300, pointerEvents: "none" }}>
         <div style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #0B4DA2, #1768D1)", transition: "width .1s linear" }} />
-        <div style={{ position: "absolute", top: -10, left: `${progress * 100}%`, transform: "translateX(-50%)", fontSize: 15, transition: "left .1s linear" }}>✈️</div>
+        <div style={{ position: "absolute", top: -7, left: `${progress * 100}%`, transform: "translateX(-50%)", display: "flex", transition: "left .1s linear" }}><Icon name="flights" size={15} color="#0B4DA2" stroke={2} /></div>
       </div>
 
       {/* Docked category bar: pins at the top only once the hero tiles reach it */}
       <DockedCategoryBar categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} visible={docked} isMobile={isMobile} />
 
       {/* BANNER */}
-      <div style={{ background: "linear-gradient(90deg, #1a1a2e, #16213e)", color: "#aaa", fontSize: 12, textAlign: "center", padding: "6px 0", letterSpacing: 0.5 }}>
-        ✨ New: Multi-city bookings now available! &nbsp;|&nbsp; 🎁 Use code <strong style={{ color: "#9CC4FF" }}>WANDER25</strong> for ₹2,500 off your first booking
+      <div style={{ background: "linear-gradient(90deg, #1a1a2e, #16213e)", color: "#c2ccd9", fontSize: 12, padding: "7px 16px", letterSpacing: 0.4, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="sparkle" size={13} color="#9CC4FF" /> New: Multi-city bookings now available!</span>
+        <span style={{ opacity: 0.4 }}>|</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="gift" size={13} color="#9CC4FF" /> Use code <strong style={{ color: "#9CC4FF" }}>WANDER25</strong> for ₹2,500 off your first booking</span>
       </div>
 
       {/* NAVBAR */}
       <nav style={{ background: "#fff", boxShadow: scrolled ? "0 4px 18px rgba(4,29,54,0.13)" : "0 1px 0 rgba(0,0,0,0.06)", padding: isMobile ? "0 16px" : "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between", height: scrolled ? 56 : 64, position: "sticky", top: 0, zIndex: 100, transition: "height .25s ease, box-shadow .25s ease" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg, #0B4DA2, #1768D1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🌍</div>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg, #0B4DA2, #1768D1)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="compass" size={22} color="#fff" stroke={2} /></div>
           <div>
             <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a2e", lineHeight: 1 }}>Wanderlust</div>
             <div style={{ fontSize: 10, color: "#0B4DA2", fontWeight: 600, letterSpacing: 1 }}>TRAVEL PLANNER</div>
@@ -1359,7 +1378,7 @@ export default function WanderlustApp() {
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "28px 14px" : "40px 24px" }}>
         {/* SPECIAL FARES — grouped into its own labelled card zone */}
         <Reveal><div style={{ background: "#fff", border: "1px solid #e3e7ef", borderRadius: 16, padding: isMobile ? "16px 14px" : "20px 22px", marginBottom: 40, boxShadow: "0 2px 10px rgba(4,29,54,0.05)" }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e", marginBottom: 12, letterSpacing: 0.3 }}>🎫 Select a Fare Type</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e", marginBottom: 12, letterSpacing: 0.3, display: "flex", alignItems: "center", gap: 8 }}><Icon name="ticket" size={16} color="#0B4DA2" /> Select a Fare Type</div>
           <div style={{ display: "flex", gap: 12, overflowX: "auto", padding: "2px 0", scrollbarWidth: "none" }}>
             {[
               { label: "Regular", sub: "Regular fares", active: true },
@@ -1380,20 +1399,20 @@ export default function WanderlustApp() {
         <Reveal><div style={{ background: "linear-gradient(180deg, #F2F7FE, #FFFFFF)", border: "1px solid #dbe5f5", borderRadius: 18, padding: isMobile ? "20px 16px" : "26px 24px", marginBottom: 40, boxShadow: "0 2px 12px rgba(4,29,54,0.05)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a2e" }}>🎁 Exclusive Offers</h2>
+              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 10 }}><Icon name="gift" size={22} color="#0B4DA2" /> Exclusive Offers</h2>
               <p style={{ margin: "4px 0 0", color: "#5f6875", fontSize: 13 }}>Handpicked deals just for you</p>
             </div>
             <a href="#" style={{ color: "#0B4DA2", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>View All →</a>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 16 }}>
             {offers.map(o => (
-              <div key={o.title} style={{ background: o.bg, borderRadius: 14, padding: "20px", border: `1px solid ${o.color}22`, position: "relative", cursor: "pointer", transition: "transform .2s, box-shadow .2s" }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 8px 24px ${o.color}22`; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
-                <div style={{ position: "absolute", top: 14, right: 14, background: o.color, color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 6 }}>{o.badge}</div>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e", marginBottom: 6, paddingRight: 60 }}>{o.title}</div>
-                <div style={{ fontSize: 12.5, color: "#555", lineHeight: 1.5 }}>{o.desc}</div>
-                <div style={{ marginTop: 14, color: o.color, fontWeight: 700, fontSize: 13 }}>Grab Deal →</div>
+              <div key={o.title} style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", border: "1px solid #dbe3ef", borderLeft: `4px solid ${o.color}`, position: "relative", cursor: "pointer", boxShadow: "0 1px 4px rgba(4,29,54,0.06)", transition: "transform .2s, box-shadow .2s" }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 10px 26px ${o.color}26`; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 1px 4px rgba(4,29,54,0.06)"; }}>
+                <div style={{ position: "absolute", top: 14, right: 14, background: o.color, color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 6, letterSpacing: 0.4 }}>{o.badge}</div>
+                <div style={{ fontWeight: 800, fontSize: 15.5, color: "#15233a", marginBottom: 6, paddingRight: 66 }}>{o.title}</div>
+                <div style={{ fontSize: 13, color: "#3f4754", lineHeight: 1.55 }}>{o.desc}</div>
+                <div style={{ marginTop: 14, color: o.color, fontWeight: 800, fontSize: 13 }}>Grab Deal →</div>
               </div>
             ))}
           </div>
@@ -1403,7 +1422,7 @@ export default function WanderlustApp() {
         <Reveal><div style={{ background: "#fff", border: "1px solid #e3e7ef", borderRadius: 18, padding: isMobile ? "20px 16px" : "26px 24px", boxShadow: "0 2px 12px rgba(4,29,54,0.05)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a2e" }}>🌏 Popular Destinations</h2>
+              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 10 }}><Icon name="globe" size={22} color="#0B4DA2" /> Popular Destinations</h2>
               <p style={{ margin: "4px 0 0", color: "#5f6875", fontSize: 13 }}>Top picks travellers are loving right now</p>
             </div>
             <a href="#" style={{ color: "#0B4DA2", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>Explore All →</a>
@@ -1422,10 +1441,77 @@ export default function WanderlustApp() {
                   <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(255,255,255,0.95)", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: "#0B4DA2" }}>from {d.price}</div>
                 </div>
                 <div style={{ padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontSize: 12.5, color: "#5f6875" }}>✈ Flights + 🏨 Hotels</div>
+                  <div style={{ fontSize: 12.5, color: "#5f6875", display: "flex", alignItems: "center", gap: 6 }}><Icon name="flights" size={14} color="#5f6875" /> Flights + <Icon name="hotels" size={14} color="#5f6875" /> Hotels</div>
                   <button style={{ background: "linear-gradient(135deg, #0B4DA2, #1768D1)", color: "#fff", border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Book Now</button>
                 </div>
               </div>
+            ))}
+          </div>
+        </div></Reveal>
+
+        {/* TRUST STATS */}
+        <Reveal><div style={{ background: "#fff", border: "1px solid #e3e7ef", borderRadius: 18, padding: isMobile ? "20px 16px" : "24px", marginTop: 40, boxShadow: "0 2px 12px rgba(4,29,54,0.05)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16 }}>
+            {[
+              { icon: "users", value: "2M+", label: "Trips booked" },
+              { icon: "star", value: "4.6/5", label: "Avg. traveller rating" },
+              { icon: "headset", value: "24\u00d77", label: "Customer support" },
+              { icon: "shield", value: "100%", label: "Secure payments" },
+            ].map(s => (
+              <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 14, padding: "6px 8px" }}>
+                <div style={{ width: 46, height: 46, borderRadius: 12, background: "#EAF1FC", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name={s.icon} size={22} color="#0B4DA2" /></div>
+                <div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: "#15233a", lineHeight: 1.1 }}>{s.value}</div>
+                  <div style={{ fontSize: 12.5, color: "#5f6875", marginTop: 2 }}>{s.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div></Reveal>
+
+        {/* TESTIMONIALS */}
+        <Reveal><div style={{ background: "#fff", border: "1px solid #e3e7ef", borderRadius: 18, padding: isMobile ? "20px 16px" : "26px 24px", marginTop: 40, boxShadow: "0 2px 12px rgba(4,29,54,0.05)" }}>
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 10 }}><Icon name="star" size={22} color="#0B4DA2" /> What travellers say</h2>
+            <p style={{ margin: "4px 0 0", color: "#5f6875", fontSize: 13 }}>Real reviews from Wanderlust customers</p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+            {[
+              { quote: "Booked a Goa trip in minutes \u2014 the PNR and live train status saved me right at the station. Smoothest experience yet.", name: "Ananya Sharma", place: "Bengaluru", rating: 5 },
+              { quote: "Compared flights and hotels in one place and grabbed a flash deal to Delhi. Clean interface, no clutter, no surprises.", name: "Rahul Mehta", place: "Mumbai", rating: 5 },
+              { quote: "Loved the curated destination ideas, and support helped me reschedule without any fuss. Highly recommend Wanderlust.", name: "Priya Nair", place: "Kochi", rating: 4 },
+            ].map(t => (
+              <div key={t.name} style={{ border: "1px solid #e3e7ef", borderRadius: 14, padding: "18px 20px", background: "#fbfcfe", display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", gap: 2 }}>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <svg key={i} width="15" height="15" viewBox="0 0 24 24" fill={i < t.rating ? "#f5a623" : "#d7dce4"} aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.2l5.9-.9z" /></svg>
+                  ))}
+                </div>
+                <div style={{ fontSize: 13.5, color: "#3f4754", lineHeight: 1.6 }}>{t.quote}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 11, marginTop: "auto" }}>
+                  <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg, #0B4DA2, #1768D1)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, flexShrink: 0 }}>{t.name.charAt(0)}</div>
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 800, color: "#15233a" }}>{t.name}</div>
+                    <div style={{ fontSize: 11.5, color: "#5f6875" }}>{t.place}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div></Reveal>
+
+        {/* SECURE PAYMENTS */}
+        <Reveal><div style={{ background: "linear-gradient(180deg, #F2F7FE, #FFFFFF)", border: "1px solid #dbe5f5", borderRadius: 18, padding: isMobile ? "18px 16px" : "20px 24px", marginTop: 40, boxShadow: "0 2px 12px rgba(4,29,54,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 11, background: "#0B4DA2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="shield" size={22} color="#fff" /></div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#15233a" }}>100% Secure Payments</div>
+              <div style={{ fontSize: 12.5, color: "#5f6875" }}>256-bit encrypted checkout, trusted by millions of travellers</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {["Visa", "Mastercard", "RuPay", "UPI", "Net Banking"].map(pm => (
+              <span key={pm} style={{ border: "1px solid #c8d3e4", background: "#fff", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, color: "#3f4754" }}>{pm}</span>
             ))}
           </div>
         </div></Reveal>
@@ -1437,7 +1523,7 @@ export default function WanderlustApp() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 32, marginBottom: 36 }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #0B4DA2, #1768D1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🌍</div>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #0B4DA2, #1768D1)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="compass" size={18} color="#fff" stroke={2} /></div>
                 <div style={{ color: "#fff", fontWeight: 800, fontSize: 15 }}>Wanderlust</div>
               </div>
               <p style={{ fontSize: 13, lineHeight: 1.7, margin: 0 }}>Your trusted travel partner for unforgettable journeys around the world.</p>
